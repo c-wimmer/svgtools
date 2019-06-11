@@ -1,0 +1,13 @@
+Package: svgtools
+Type: Package
+Title: svgtools
+Version: 0.1
+Date: 2019-04-03
+Author: Christian Wimmer [aut, cre], Konrad Oberwimmer [aut]
+Maintainer: Christian Wimmer <c.wimmer@bifie.at>
+Description: Rsvg
+License: GPL 2.0
+LazyData: TRUE
+RoxygenNote: 6.1.0
+Depends: R (>= 3.4.4)
+Imports: xml2, rsvg, magick, stringr
