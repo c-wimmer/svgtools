@@ -452,7 +452,7 @@ write_svg <- function(svg, file) {
 }
 
 # stackedBar: passt stacked bar an, rects und text
-stackedBar <- function(svg_in, values, group_name, frame_name, scale_real, alignment, hasLabels = TRUE, displayLimit = 0) {
+stackedBar <- function(svg_in, values, group_name, frame_name, scale_real, alignment, hasLabels = TRUE, labelPosition = "center", displayLimit = 0) {
   
   # get frame info and scaling
   frame_info <- frame_and_scaling(svg_in, frame_name, scale_real)
@@ -507,7 +507,7 @@ stackedBar <- function(svg_in, values, group_name, frame_name, scale_real, align
       if (alignment == "vertical") {order_labels <- order_labels_y}
       
       # adjust values and position of text elements
-      stackedBar_edit_text(barLabels, order_labels, value_set, rects, order_rects, displayLimit, alignment)
+      stackedBar_edit_text(barLabels, order_labels, value_set, rects, order_rects, displayLimit, labelPosition, alignment)
     
     }
 
