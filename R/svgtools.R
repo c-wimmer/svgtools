@@ -521,6 +521,184 @@ stackedBar <- function(svg_in, values, group_name, frame_name, scale_real, align
 
 
 
+## -- Differenzbalken
+# Differenzbalken edit rects
+diffBar_edit_rects <- function (rects, values, frame_info, frame0_name, order_rects, alignment) {
+  
+  frame0_x <- xml2::xml_find_all(svg_in, "./line")
+  frame0_x <- base::as.numeric(xml2::xml_attr(frame0_x[base::which(xml2::xml_attr(frame0_x, "id")
+                                                                   == frame0_name)], "x1"))
+  frame0_y <- xml2::xml_find_all(svg_in, "./line")
+  frame0_y <- base::as.numeric(xml2::xml_attr(frame0_y[base::which(xml2::xml_attr(frame0_y, "id")
+                                                                   == frame0_name)], "y1"))
+  
+  
+  base::switch (alignment,
+                
+                "horizontal" = {
+                  
+                  for (rect_nr in 1:base::length(rects)) {
+                    
+                    if (values[order_rects[rect_nr]] > 0) {
+                      
+                      xml2::xml_set_attr(rects[order_rects[rect_nr]], "x", frame0_x)
+                      xml2::xml_set_attr(rects[order_rects[rect_nr]], 
+                                         "width", values[order_rects[rect_nr]] * frame_info$scaling_x)
+                      
+                    }
+                    
+                    if (values[order_rects[rect_nr]] < 0) {
+                      
+                      xml2::xml_set_attr(rects[order_rects[rect_nr]], "x", frame0_x + values[order_rects[rect_nr]] *
+                                           frame_info$scaling_x)
+                      xml2::xml_set_attr(rects[order_rects[rect_nr]], "width", 
+                                         base::abs(values[order_rects[rect_nr]]) * frame_info$scaling_x)
+                      
+                    }
+                    
+                    if (values[order_rects[rect_nr]] == 0) {
+                      
+                      xml2::xml_set_attr(rects[order_rects[rect_nr]], "display", "none")
+                      
+                    }
+                    
+                  }
+                  
+                  
+                },
+                
+                "vertical" = {
+                  
+                  for (rect_nr in 1:base::length(rects)) {
+                    
+                    if (values[order_rects[rect_nr]] > 0) {
+                      
+                      xml2::xml_set_attr(rects[order_rects[rect_nr]], "y", frame0_y)
+                      xml2::xml_set_attr(rects[order_rects[rect_nr]], 
+                                         "height", values[order_rects[rect_nr]] * frame_info$scaling_y)
+                      
+                    }
+                    
+                    if (values[order_rects[rect_nr]] < 0) {
+                      
+                      xml2::xml_set_attr(rects[order_rects[rect_nr]], "y", frame0_y + values[order_rects[rect_nr]] * 
+                                           frame_info$scaling_y)
+                      xml2::xml_set_attr(rects[order_rects[rect_nr]], "height", 
+                                         base::abs(values[order_rects[rect_nr]]) * frame_info$scaling_y)
+                      
+                    }
+                    
+                    if (values[order_rects[rect_nr]] == 0) {
+                      
+                      xml2::xml_set_attr(rects[order_rects[rect_nr]], "display", "none")
+                      
+                    }
+                    
+                  }
+                  
+                })
+  
+}
+
+# Differenzbalken edit text
+diffBar_edit_texts <- function (barLabels, order_labels, values, rects, order_rects, displayLimit, labelPosition, alignment) {
+  
+  for (n_text in 1:base::length(barLabels)) {
+    
+    # change value
+    text_toChange <- barLabels[n_text]
+    xml2::xml_text(text_toChange) <- base::as.character(values[order_labels[n_text]])
+    
+    # comply with displayLimit
+    if ((base::abs(values[order_labels[n_text]]) < displayLimit) | (values[order_labels[n_text]] == 0)) {
+      xml2::xml_set_attr(text_toChange, "display", "none")
+    }
+    
+    # change position
+    rectinfo_pos_x <- base::as.numeric(xml2::xml_attr(rects[which(order_rects == order_labels[n_text])], "x"))
+    rectinfo_pos_width <- base::as.numeric(xml2::xml_attr(rects[which(order_rects == order_labels[n_text])], "width"))
+    rectinfo_pos_y <- base::as.numeric(xml2::xml_attr(rects[which(order_rects == order_labels[n_text])], "y"))
+    rectinfo_pos_height <- base::as.numeric(xml2::xml_attr(rects[which(order_rects == order_labels[n_text])], "height"))
+    
+    if (alignment == "horizontal") {
+      
+      text_pos_center <- rectinfo_pos_x + (rectinfo_pos_width/2)
+      text_pos_in <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_x + 10, 
+                                   rectinfo_pos_x + rectinfo_pos_width - 10)
+      text_pos_out <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_x + rectinfo_pos_width - 10,
+                                    rectinfo_pos_x + 10)
+      
+    } else {
+      
+      text_pos_center <- rectinfo_pos_y + (rectinfo_pos_height/2)
+      text_pos_in <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_y + rectinfo_pos_height - 10, 
+                                   rectinfo_pos_y + 10)
+      text_pos_out <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_y + 10,
+                                    rectinfo_pos_y + rectinfo_pos_height - 10)
+      
+    }
+    
+    if (labelPosition == "center") {text_pos <- text_pos_center}
+    if (labelPosition == "start") {text_pos <- text_pos_in}
+    if (labelPosition == "end") {text_pos <- text_pos_out}
+    
+    text_matrix <- xml2::xml_attr(text_toChange, "transform")
+    matrix_values_start <- stringr::str_locate(text_matrix, "matrix\\(")
+    matrix_values <- stringr::str_sub(text_matrix, (matrix_values_start[2] + 1), (base::nchar(text_matrix) - 1))
+    matrix_values <- base::as.numeric(base::unlist(base::strsplit(matrix_values, split = " ")))
+    
+    base::ifelse (alignment == "horizontal", matrix_values[5] <- text_pos, matrix_values[6] <- text_pos)
+    
+    text_pos_matrix <- base::paste0("matrix(", matrix_values[1], " ", matrix_values[2], " ", matrix_values[3], " ", 
+                                    matrix_values[4], " ", matrix_values[5], " ", matrix_values[6], ")")
+    
+    xml2::xml_set_attr(text_toChange, "transform", text_pos_matrix)
+    xml2::xml_set_attr(text_toChange, "text-anchor", "middle")
+    
+  }
+  
+}
+
+# Differenzbalken Hauptfunktion
+diffBar <- function(svg_in, values, group_name, frame_name, frame0_name, scale_real, alignment, hasLabels = TRUE, labelPosition = "center", displayLimit = 0) {
+  
+  # get frame info and scaling
+  frame_info <- frame_and_scaling(svg_in, frame_name, scale_real)
+  
+  # if input-values == vector: transform to data.frame to get 1 row
+  if (base::is.null(base::nrow(values))) {values <- base::t(base::data.frame(values))}
+  
+  # get called group
+  symbolGroup <- stackedBar_in(svg_in, group_name)
+  
+  # get rects
+  rects <- xml2::xml_find_all(symbolGroup, "./rect")
+  if (base::length(rects) != base::length(values)) {stop("Anzahl Rechtecke != Anzahl Werte.")}
+  
+  # get order of rects
+  order_rects_x <- base::order(base::as.numeric(xml2::xml_attr(rects, "y")))
+  order_rects_y <- base::order(base::as.numeric(xml2::xml_attr(rects, "x")))
+  if (alignment == "horizontal") {order_rects <- order_rects_x}
+  if (alignment == "vertical") {order_rects <- order_rects_y}
+  
+  # edit all rects
+  diffBar_edit_rects(rects, values, frame_info, frame0_name, order_rects, alignment)
+  
+  # edit text
+  if (hasLabels) {
+    
+    texts <- xml2::xml_find_all(symbolGroup, "./text")
+    if (base::length(texts) != base::length(values)) {stop("Anzahl Labels != Anzahl Werte.")}
+    order_textOut <- stackedBar_order_text(texts, values)
+    order_labels_x <- order_textOut$order_labels_x
+    order_labels_y <- base::rev(order_textOut$order_labels_y)
+    if (alignment == "horizontal") {order_labels <- order_labels_y}
+    if (alignment == "vertical") {order_labels <- order_labels_x}
+    diffBar_edit_texts(texts, order_labels, values, rects, order_rects, displayLimit, labelPosition, alignment)
+    
+  }
+  
+}
 
 
 
