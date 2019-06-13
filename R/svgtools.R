@@ -3,8 +3,6 @@
 
 ## -- HILFSFUNKTIONEN
 
-## test
-
 
 
 ## -- frame_and_scaling: Hilfsfunktion: Liest Infos des genannten Rahmens aus und berechnet Skalierung
@@ -222,7 +220,7 @@ stackedBar_order_text <- function(barLabels, value_set) {
 }
 
 # Hilfsfunktion: Text eines stackedBars bearbeiten: Text tauschen, Position anpassen
-stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, order_rects, displayLimit, alignment) {
+stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, order_rects, displayLimit, labelPosition, alignment) {
   
   switch (alignment,
           
@@ -242,7 +240,18 @@ stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, orde
               # change position
               rectinfo_pos_x <- base::as.numeric(xml2::xml_attr(rects[which(order_rects == order_labels[n_text])], "x"))
               rectinfo_pos_width <- base::as.numeric(xml2::xml_attr(rects[which(order_rects == order_labels[n_text])], "width"))
-              text_pos <- rectinfo_pos_x + (rectinfo_pos_width/2)
+              
+              # label position
+              text_pos_center <- rectinfo_pos_x + (rectinfo_pos_width/2)
+              text_pos_in <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_x + 10, 
+                                           rectinfo_pos_x + rectinfo_pos_width - 10)
+              text_pos_out <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_x + rectinfo_pos_width - 10,
+                                            rectinfo_pos_x + 10)
+              
+              if (labelPosition == "center") {text_pos <- text_pos_center}
+              if (labelPosition == "start") {text_pos <- text_pos_in}
+              if (labelPosition == "end") {text_pos <- text_pos_out}
+
               
               text_matrix <- xml2::xml_attr(text_toChange, "transform")
               matrix_values_start <- stringr::str_locate(text_matrix, "matrix\\(")
@@ -275,7 +284,18 @@ stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, orde
               # change position
               rectinfo_pos_y <- base::as.numeric(xml2::xml_attr(rects[which(order_rects == order_labels[n_text])], "y"))
               rectinfo_pos_height <- base::as.numeric(xml2::xml_attr(rects[which(order_rects == order_labels[n_text])], "height"))
-              text_pos <- rectinfo_pos_y + (rectinfo_pos_height/2)
+              
+              # label position
+              text_pos_center <- rectinfo_pos_y + (rectinfo_pos_height/2)
+              text_pos_in <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_y + rectinfo_pos_height - 10, 
+                                           rectinfo_pos_y + 10)
+              text_pos_out <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_y + 10,
+                                            rectinfo_pos_y + rectinfo_pos_height - 10)
+              
+              
+              if (labelPosition == "center") {text_pos <- text_pos_center}
+              if (labelPosition == "start") {text_pos <- text_pos_in}
+              if (labelPosition == "end") {text_pos <- text_pos_out}
               
               text_matrix <- xml2::xml_attr(text_toChange, "transform")
               matrix_values_start <- stringr::str_locate(text_matrix, "matrix\\(")
@@ -292,7 +312,6 @@ stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, orde
             }
             
           })
-  
   
 }
 
