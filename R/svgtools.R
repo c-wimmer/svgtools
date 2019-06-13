@@ -3,6 +3,10 @@
 
 ## -- HILFSFUNKTIONEN
 
+## test
+
+
+
 ## -- frame_and_scaling: Hilfsfunktion: Liest Infos des genannten Rahmens aus und berechnet Skalierung
 # svg_in: svg objekt
 # frame_name: gesuchter Rahmenname; Zusatzcheck: Error, wenn Rahmenname nicht oder >1 vorhanden ist
