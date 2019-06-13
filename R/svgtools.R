@@ -705,22 +705,343 @@ diffBar <- function(svg_in, values, group_name, frame_name, frame0_name, scale_r
 
 
 
+## -- Hilfsfunktionen/Tools
+# wandelt strings in svg-style Strings um
+svg_TextToSvgFormat <- function(input_text) {
+  
+  input_text <- base::gsub("_", "_x5F_", input_text)
+  input_text <- base::gsub("\\(", "_x28_", input_text)
+  input_text <- base::gsub("\\)", "_x29_", input_text)
+  input_text <- base::gsub("\\,", "C", input_text)
+  input_text <- base::gsub("\\;", "_x3B_", input_text)
+  input_text <- base::gsub(" ", "__", input_text)
+  input_text <- base::gsub("--", "_x2013_", input_text)
+  input_text <- base::gsub("\\*", "_x2A_", input_text)
+  return(input_text)
+  
+}
 
+# elemente ausblenden
+svg_hideElement <- function(svg_in, element_name, element_type) {
+  
+  if (element_type == "text") {
+    
+    elements <- xml2::xml_find_all(svg_in, "./text")
+    
+    for (element_nr in 1:base::length(element_name)) {
+      
+      element_search <- svg_TextToSvgFormat(element_name[element_nr])
+      check1 <- base::length(base::which(xml2::xml_text(elements) == element_search)) == 0
+      check2 <- base::length(base::which(xml2::xml_attr(elements, "id") == element_search)) == 0
+      
+      
+      if (check1 & check2) {stop (base::paste0("Kein Textelement mit der Bezeichnung ", element_name[element_nr], " gefunden."))}
+      
+      if (base::length(base::which(xml2::xml_text(elements) == element_search)) == 0) {
+        xml2::xml_set_attr(elements[base::which(xml2::xml_attr(elements, "id") == 
+                                                  element_search)], "display", "none")
+      } else {
+        xml2::xml_set_attr(elements[base::which(xml2::xml_text(elements) == 
+                                                  element_search)], "display", "none")
+      }
+      
+    }
+    
+  } else {
+    
+    elements <- xml2::xml_find_all(svg_in, base::paste0("./", element_type))
+    
+    for (element_nr in 1:base::length(element_name)) {
+      
+      element_search <- svg_TextToSvgFormat(element_name[element_nr])
+      xml2::xml_set_attr(elements[base::which(xml2::xml_attr(elements, "id") == 
+                                                element_search)], "display", "none")
+      
+    }
+    
+  }
+  
+}
 
+# Passt Balkenelemente und Textelement hinsichtlich Ausrichtung an
+stackedBar_adjust <- function(svg_in, group_name, alignment, ref_rect = NULL, ref_text = NULL) {
+  
+  # check
+  if (!(alignment %in% c("horizontal", "vertical"))) {stop("alignment paramenter muss 'horizontal' oder 'vertical' sein.")}
+  
+  # check if subgroup has to be adjusted
+  subgroup <- ifelse (base::grepl("/", group_name) == FALSE, FALSE, TRUE)
+  # check if all subgroups should be adjusted
+  if (subgroup) {
+    subgroup_all <- ifelse (base::substr(group_name, base::nchar(group_name), base::nchar(group_name)) == "/", TRUE, FALSE)
+  }
+  
+  
+  subgroup_levels <- base::length(base::unlist(base::strsplit(group_name, split = "/")))  ## TODO
+  
+  group_name_main <- base::unlist(base::strsplit(group_name, split = "/"))[1]
+  group_name_sub <- base::unlist(base::strsplit(group_name, split = "/"))[2]
+  
+  symbolGroup <- stackedBar_in(svg_in, group_name_main)
+  symbolGroup_subs <- xml2::xml_find_all(symbolGroup, "g")
+  
+  if (subgroup_all) {
+    symbolGroup_edit <- symbolGroup
+  } else if (subgroup) {
+    symbolGroup_edit <- symbolGroup_subs[base::which(xml2::xml_attr(symbolGroup_subs, "id") == group_name_sub)]
+  } else {
+    symbolGroup_edit <- symbolGroup
+  }
+  
+  
+  n_subgroups <- base::length(xml2::xml_find_all(symbolGroup_edit, "g"))
+  if (n_subgroups == 0) {
+    n_subgroups <- 1
+  }
+  
+  
+  # edit rect position
+  if (!is.null(ref_rect)) {
+    
+    for (n_groups in 1:n_subgroups) {
+      
+      if (n_subgroups == 1) {
+        group_toEdit <- symbolGroup_edit
+      } else {
+        group_toEdit <- xml2::xml_find_all(symbolGroup_edit, "./g")[n_groups]
+      }
+      rects <- xml2::xml_find_all(group_toEdit, "./rect")
+      order_rects_x <- base::rank(base::as.numeric(xml2::xml_attr(rects, "x")))
+      order_rects_y <- base::rank(-base::as.numeric(xml2::xml_attr(rects, "y")))
+      if (alignment == "horizontal") {order_rects <- order_rects_x}
+      if (alignment == "vertical") {order_rects <- order_rects_y}
+      x_adjust <- xml2::xml_attr(rects[base::which(order_rects == ref_rect)], "x")
+      y_adjust <- xml2::xml_attr(rects[base::which(order_rects == ref_rect)], "y")
+      value_adjust <- base::ifelse (alignment == "horizontal", y_adjust, x_adjust)
+      variable_adjust <- base::ifelse (alignment == "horizontal", "y", "x")
+      
+      for (rect_nr in 1:base::length(rects)) {
+        
+        xml2::xml_set_attr(rects[order_rects[rect_nr]], variable_adjust, value_adjust)
+        
+      }
+      
+    }
+    
+  }
+  
+  ## edit text position
+  if (!is.null(ref_text)) {
+    
+    for (n_groups in 1:n_subgroups) {
+      
+      if (n_subgroups == 1) {
+        group_toEdit <- symbolGroup_edit
+      } else {
+        group_toEdit <- xml2::xml_find_all(symbolGroup_edit, "./g")[n_groups]
+      }
+      texts <- xml2::xml_find_all(group_toEdit, "./text")
+      
+      order_textOut <- stackedBar_order_text(texts, 1:base::length(texts))
+      order_labels_x <- order_textOut$order_labels_x
+      order_labels_y <- order_textOut$order_labels_y
+      if (alignment == "horizontal") {
+        order_labels <- order_labels_x
+      } else {
+        order_labels <- order_labels_y
+      }
+      
+      text_matrix <- xml2::xml_attr(texts[base::which(order_labels == ref_text)], "transform")
+      matrix_values_start <- stringr::str_locate(text_matrix, "matrix\\(")
+      matrix_values <- stringr::str_sub(text_matrix, (matrix_values_start[2] + 1), (base::nchar(text_matrix) - 1))
+      matrix_values <- base::as.numeric(base::unlist(base::strsplit(matrix_values, split = " ")))
+      
+      value_adjust <- base::ifelse(alignment == "horizontal", matrix_values[6], matrix_values[5])
+      variable_adjust <- base::ifelse(alignment == "horizontal", 6, 5)
+      
+      for (n_text in 1:base::length(texts)) {
+        
+        text_matrix <- xml2::xml_attr(texts[base::which(order_labels == n_text)], "transform")
+        matrix_values_start <- stringr::str_locate(text_matrix, "matrix\\(")
+        matrix_values <- stringr::str_sub(text_matrix, (matrix_values_start[2] + 1), (base::nchar(text_matrix) - 1))
+        matrix_values <- base::as.numeric(base::unlist(base::strsplit(matrix_values, split = " ")))
+        matrix_values[variable_adjust] <- value_adjust
+        text_pos_matrix <- base::paste0("matrix(", matrix_values[1], " ", matrix_values[2], " ", matrix_values[3], " ", 
+                                        matrix_values[4], " ", matrix_values[5], " ", matrix_values[6], ")")
+        xml2::xml_set_attr(texts[base::which(order_labels == n_text)], "transform", text_pos_matrix)
+        
+      }
+      
+    }
+    
+  }
+  
+}
 
+# Passt Farben von Balkenelementen und Textelementen eines stackedBars an
+stackedBar_setColor <- function(svg_in, group_name, alignment, color_rects = NULL, color_texts = NULL) {
+  
+  # check if subgroup has to be adjusted
+  subgroup <- ifelse (base::grepl("/", group_name) == FALSE, FALSE, TRUE)
+  # check if all subgroups should be adjusted
+  if (subgroup) {
+    subgroup_all <- ifelse (base::substr(group_name, base::nchar(group_name), base::nchar(group_name)) == "/", TRUE, FALSE)
+  }
+  
+  subgroup_levels <- base::length(base::unlist(base::strsplit(group_name, split = "/")))  ## TODO
+  
+  group_name_main <- base::unlist(base::strsplit(group_name, split = "/"))[1]
+  group_name_sub <- base::unlist(base::strsplit(group_name, split = "/"))[2]
+  
+  symbolGroup <- stackedBar_in(svg_in, group_name_main)
+  symbolGroup_subs <- xml2::xml_find_all(symbolGroup, "g")
+  
+  if (subgroup_all) {
+    symbolGroup_edit <- symbolGroup
+  } else if (subgroup) {
+    symbolGroup_edit <- symbolGroup_subs[base::which(xml2::xml_attr(symbolGroup_subs, "id") == group_name_sub)]
+  } else {
+    symbolGroup_edit <- symbolGroup
+  }
+  
+  
+  n_subgroups <- base::length(xml2::xml_find_all(symbolGroup_edit, "g"))
+  if (n_subgroups == 0) {
+    n_subgroups <- 1
+  }
+  
+  
+  # rects
+  if (!base::is.null(color_rects)) {
+    
+    for (n_groups in 1:n_subgroups) {
+      
+      if (n_subgroups == 1) {
+        group_toEdit <- symbolGroup_edit
+      } else {
+        group_toEdit <- xml2::xml_find_all(symbolGroup_edit, "./g")[n_groups]
+      }
+      rects <- xml2::xml_find_all(group_toEdit, "./rect")
+      
+      # check
+      if (base::length(rects) != base::length(color_rects)) {
+        stop ("Anzahl Rechtecke entspricht nicht Anzahl Farben.")
+      }
+      
+      order_rects_x <- base::rank(base::as.numeric(xml2::xml_attr(rects, "x")))
+      order_rects_y <- base::rank(-base::as.numeric(xml2::xml_attr(rects, "y")))
+      if (alignment == "horizontal") {order_rects <- order_rects_x}
+      if (alignment == "vertical") {order_rects <- order_rects_y}
+      
+      for (n_rects in 1:base::length(rects)) {
+        
+        xml2::xml_set_attr(rects[order_rects[n_rects]], "fill", color_rects[n_rects])
+        ## TODO: if is.null
+        
+      }
+      
+    }
+    
+  }
+  
+  
+  # texts
+  if (!base::is.null(color_texts)) {
+    
+    for (n_groups in 1:n_subgroups) {
+      
+      if (n_subgroups == 1) {
+        group_toEdit <- symbolGroup_edit
+      } else {
+        group_toEdit <- xml2::xml_find_all(symbolGroup_edit, "./g")[n_groups]
+      }
+      
+      texts <- xml2::xml_find_all(group_toEdit, "./text")
+      
+      # check
+      if (base::length(texts) != base::length(color_texts)) {
+        stop ("Anzahl Lables entspricht nicht Anzahl Farben.")
+      }
+      
+      order_labels <- stackedBar_order_text(texts, 1:base::length(texts))
+      if (alignment == "horizontal") {order_labels <- order_labels$order_labels_x}
+      if (alignment == "vertical") {order_labels <- order_labels$order_labels_y}
+      
+      for (n_texts in 1:base::length(texts)) {
+        
+        xml2::xml_set_attr(texts[order_labels[n_texts]], "fill", color_texts[n_texts])
+        ## TODO: if is.null
+        
+      }
+      
+    }
+    
+  }
+  
+}
 
-## TODO:
-# position wert auf x achse
+# Liest Farbcode von einem Element aus
+svg_getElementColor <- function(svg_in, element_name, element_type) {
+  
+  elements <- xml2::xml_find_all(svg_in, base::paste0("./", element_type))
+  color_out <- NULL
+  
+  for (element_nr in 1:base::length(element_name)) {
+    
+    
+    color_out <- c(color_out, xml2::xml_attr(elements[base::which(xml2::xml_attr(elements, "id") == 
+                                                                    element_name[element_nr])], "fill"))
+    
+  }
+  
+  return(color_out)
+  
+}
 
+# Ersetzt Farbcode eines Elements
+svg_setElementColor <- function(svg_in, element_name, element_type, color_new) {
+  
+  elements <- xml2::xml_find_all(svg_in, base::paste0("./", element_type))
+  
+  for (element_nr in 1:base::length(element_name)) {
+    
+    xml2::xml_set_attr(elements[base::which(xml2::xml_attr(elements, "id") == 
+                                              element_name[element_nr])], "fill", color_new[element_nr])
+    
+  }
+  
+}
 
-
-
-
-## Moeglichkeit: Funktion, die text und balken ausrichtet an gewaehltem Text/Balken.
-
-
-
-
+# Ersetzt Text in Textelement
+svg_setElementText <- function(svg_in, element_name, text_new, inGroup = NULL) {
+  
+  if (!is.null(inGroup)) {
+    availableGroups <- xml2::xml_find_all(svg_in, "g")
+    searchGroup <- availableGroups[base::which(xml2::xml_attr(availableGroups, "id") == inGroup)]
+    elements <- xml2::xml_find_all(searchGroup, "./text")
+  } else {
+    elements <- xml2::xml_find_all(svg_in, "./text")
+  }
+  
+  for (element_nr in 1:base::length(element_name)) {
+    
+    check1 <- base::length(base::which(xml2::xml_text(elements) == element_name[element_nr])) == 0
+    check2 <- base::length(base::which(xml2::xml_attr(elements, "id") == element_name[element_nr])) == 0
+    
+    
+    if (check1 & check2) {stop (base::paste0("Kein Textelement mit der Bezeichnung ", element_name[element_nr], " gefunden."))}
+    
+    if (base::length(base::which(xml2::xml_text(elements) == element_name[element_nr])) == 0) {
+      xml2::xml_set_text(elements[base::which(xml2::xml_attr(elements, "id") == 
+                                                element_name[element_nr])], text_new[element_nr])
+    } else {
+      xml2::xml_set_text(elements[base::which(xml2::xml_text(elements) == 
+                                                element_name[element_nr])], text_new[element_nr])
+    }
+    
+  }
+  
+}
 
 
 
