@@ -2,5 +2,6 @@
 
 export(display_svg)
 export(read_svg)
+export(stackedBar)
 export(summary_svg)
 export(write_svg)

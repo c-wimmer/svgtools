@@ -220,7 +220,7 @@ stackedBar_order_text <- function(barLabels, value_set) {
 }
 
 # Hilfsfunktion: Text eines stackedBars bearbeiten: Text tauschen, Position anpassen
-stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, order_rects, displayLimit, labelPosition, alignment) {
+stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, order_rects, decimals, displayLimit, labelPosition, alignment) {
   
   switch (alignment,
           
@@ -230,7 +230,8 @@ stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, orde
               
               # change value
               text_toChange <- barLabels[order_labels[n_text]]
-              xml2::xml_text(text_toChange) <- base::as.character(value_set[order_labels[n_text]])
+              #xml2::xml_text(text_toChange) <- base::as.character(value_set[order_labels[n_text]])
+              xml2::xml_text(text_toChange) <- base::format(round(value_set[order_labels[n_text]],decimals),nsmall=decimals,decimal.mark=",",big.mark="",small.mark="")
               
               # comply with displayLimit
               if ((value_set[order_labels[n_text]] < displayLimit) | (value_set[order_labels[n_text]] == 0)) {
@@ -274,7 +275,8 @@ stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, orde
               
               # change value
               text_toChange <- barLabels[order_labels[n_text]]
-              xml2::xml_text(text_toChange) <- base::as.character(value_set[order_labels[n_text]])
+              #xml2::xml_text(text_toChange) <- base::as.character(value_set[order_labels[n_text]])
+              xml2::xml_text(text_toChange) <- base::format(round(value_set[order_labels[n_text]],decimals),nsmall=decimals,decimal.mark=",",big.mark="",small.mark="")
               
               # comply with displayLimit
               if ((value_set[order_labels[n_text]] < displayLimit) | (value_set[order_labels[n_text]] == 0)) {
@@ -451,17 +453,34 @@ write_svg <- function(svg, file) {
 
 }
 
-# stackedBar: passt stacked bar an, rects und text
-stackedBar <- function(svg_in, values, group_name, frame_name, scale_real, alignment, hasLabels = TRUE, labelPosition = "center", displayLimit = 0) {
+#' Passt Balkendiagramm an
+#' 
+#' @description Passt ein in der SVG-Datei vorgefertigtes (gestapeltes) Balkendiagramm horizontal oder vertikal an. Vorbereitung: Balkensegmente und Wertelabels sind im SVG zu gruppieren. Mehrere solche Gruppen (Balken) können wiederum gruppiert werden. Die äußerste Gruppe ist zu benennen.
+#' @param svg SVG als XML document
+#' @param frame_name Name des Rechtseck-Elements mit dem Rahmen des Diagrammbereichs
+#' @param group_name Name der Gruppe mit den Balkenelementen bzw. mehreren Balken
+#' @param scale_real Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))
+#' @param values Dataframe mit den Werten, eine Zeile pro Balken
+#' @param alignment Ausrichtung der Balken. Entweder "horizontal" (default) oder "vertikal"
+#' @param has_labels Sollen Wertelabels angezeigt werden? (Default TRUE)
+#' @param label_position Position der Wertelabels (Default "center")
+#' @param decimals Anzahl der Dezimalstellen der Wertelabels (Default 0)
+#' @param display_limit Unter welchem Wert sollen Wertelabels unterdrückt werden? (Default 0) 
+#' @return adaptiertes SVG als XML document
+#' @export
+stackedBar <- function(svg, frame_name, group_name, scale_real, values, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limit = 0) {
+  
+  # check alignment string
+  if (!(alignment %in% c("horizontal","vertikal"))) stop("FEHLER: alignment muss 'horizontal' oder 'vertikal' sein!")
   
   # get frame info and scaling
-  frame_info <- frame_and_scaling(svg_in, frame_name, scale_real)
+  frame_info <- frame_and_scaling(svg, frame_name, scale_real)
   
   # if input-values == vector: transform to data.frame to get 1 row
   if (base::is.null(base::nrow(values))) {values <- base::t(base::data.frame(values))}
   
   # get called group
-  stackedBarGroup <- stackedBar_in(svg_in, group_name)
+  stackedBarGroup <- stackedBar_in(svg, group_name)
   
   # get n subgroups
   n_subgroups <- stackedBar_checkSub(stackedBarGroup, values)
@@ -497,7 +516,7 @@ stackedBar <- function(svg_in, values, group_name, frame_name, scale_real, align
     
     ## -- TEXT/LABELS
     # get text elements of group and right ordering
-    if (hasLabels) {
+    if (has_labels) {
       
       barLabels <- xml2::xml_find_all(barSet, "./text")
       order_textOut <- stackedBar_order_text(barLabels, value_set)
@@ -507,14 +526,14 @@ stackedBar <- function(svg_in, values, group_name, frame_name, scale_real, align
       if (alignment == "vertical") {order_labels <- order_labels_y}
       
       # adjust values and position of text elements
-      stackedBar_edit_text(barLabels, order_labels, value_set, rects, order_rects, displayLimit, labelPosition, alignment)
+      stackedBar_edit_text(barLabels, order_labels, value_set, rects, order_rects, decimals, display_limit, label_position, alignment)
     
     }
 
   }
   
   # return
-  return(svg_in)
+  return(svg)
   
 }
 
