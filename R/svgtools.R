@@ -1031,15 +1031,26 @@ svg_setElementColor <- function(svg_in, element_name, element_type, color_new) {
   
 }
 
-# Ersetzt Text in Textelement
-svg_setElementText <- function(svg_in, element_name, text_new, inGroup = NULL) {
+
+
+#' Ersetzt Text in Textelement
+#' 
+#' @description Passt ein in der SVG-Datei vorhandenes Textelement an. Kann entweder via Textinhalt selbst oder via Benennung des Textelements angewendet werden.
+#' @param svg SVG als XML document
+#' @param element_name Name des Textelements bzw. Textinhalt des Textelements, wenn dieses nicht gesondert beschriftet ist.
+#' @param text_new Text der eingetragen werden soll.
+#' @param alignment Textausrichtung. Moegliche Parameter: start, middle, end. (Default NULL)
+#' @param inGroup In welcher Gruppe befindet sich das Textelement (Default NULL).
+#' @return adaptiertes SVG als XML document
+#' @export
+svg_setElementText <- function(svg, element_name, text_new, alignment = NULL, inGroup = NULL) {
   
   if (!is.null(inGroup)) {
-    availableGroups <- xml2::xml_find_all(svg_in, "g")
+    availableGroups <- xml2::xml_find_all(svg, "g")
     searchGroup <- availableGroups[base::which(xml2::xml_attr(availableGroups, "id") == inGroup)]
     elements <- xml2::xml_find_all(searchGroup, "./text")
   } else {
-    elements <- xml2::xml_find_all(svg_in, "./text")
+    elements <- xml2::xml_find_all(svg, "./text")
   }
   
   for (element_nr in 1:base::length(element_name)) {
@@ -1051,11 +1062,26 @@ svg_setElementText <- function(svg_in, element_name, text_new, inGroup = NULL) {
     if (check1 & check2) {stop (base::paste0("Kein Textelement mit der Bezeichnung ", element_name[element_nr], " gefunden."))}
     
     if (base::length(base::which(xml2::xml_text(elements) == element_name[element_nr])) == 0) {
+      # edit text
       xml2::xml_set_text(elements[base::which(xml2::xml_attr(elements, "id") == 
                                                 element_name[element_nr])], text_new[element_nr])
+      # edit alignment
+      if (!is.null(alignment)) {
+        xml2::xml_set_attr(elements[base::which(xml2::xml_attr(elements, "id") == 
+                                                  element_name[element_nr])], "text-anchor", alignment)
+      }
+      
     } else {
+      # edit text
       xml2::xml_set_text(elements[base::which(xml2::xml_text(elements) == 
                                                 element_name[element_nr])], text_new[element_nr])
+      
+      # edit alignment
+      if (!is.null(alignment)) {
+        xml2::xml_set_attr(elements[base::which(xml2::xml_text(elements) == 
+                                                  element_name[element_nr])], "text-anchor", alignment)
+      }
+      
     }
     
   }
