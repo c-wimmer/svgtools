@@ -385,10 +385,11 @@ summary_svg <- function(svg) {
   
   # Used Fonts
   base::print("-- USED FONTS:")
-  text_elements <- xml2::xml_find_all(svg, "/svg/text")
+  svg_all_elements <- xml2::xml_contents(svg)
+  text_elements <- xml2::xml_find_all(svg_all_elements, "text")
   used_fonts <- NULL
   for (font in text_elements) {
-    used_fonts <- c(used_fonts, xml2::xml_attr(xml2::xml_children(font), "font-family"))
+    used_fonts <- c(used_fonts, xml2::xml_attr(font, "font-family"))
   }
   base::print(base::unique(used_fonts))
   
@@ -402,12 +403,13 @@ summary_svg <- function(svg) {
   
   # Colors
   base::print("-- USED COLORS:")
-  line_elements <- xml2::xml_find_all(svg, "/svg/line")
+  line_elements <- xml2::xml_find_all(svg_all_elements, "line")
+  rect_elements <- xml2::xml_find_all(svg_all_elements, "rect")
   used_colors <- NULL
   for (col in text_elements) {
     used_colors <- c(used_colors, xml2::xml_attr(xml2::xml_children(col), "fill"))
   }
-  for (col in rects) {
+  for (col in rect_elements) {
     used_colors <- c(used_colors, xml2::xml_attr(col, "fill"))
   }
   for (col in line_elements) {
