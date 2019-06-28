@@ -620,7 +620,7 @@ diffBar_edit_rects <- function (rects, values, frame_info, frame0_name, order_re
 }
 
 # Differenzbalken edit text
-diffBar_edit_texts <- function (barLabels, order_labels, values, rects, order_rects, displayLimit, labelPosition, alignment) {
+diffBar_edit_texts <- function (barLabels, order_labels, values, rects, order_rects, displayLimit, labelPosition, alignment, label_edge) {
   
   for (n_text in 1:base::length(barLabels)) {
     
@@ -642,18 +642,18 @@ diffBar_edit_texts <- function (barLabels, order_labels, values, rects, order_re
     if (alignment == "horizontal") {
       
       text_pos_center <- rectinfo_pos_x + (rectinfo_pos_width/2)
-      text_pos_in <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_x + 10, 
-                                   rectinfo_pos_x + rectinfo_pos_width - 10)
-      text_pos_out <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_x + rectinfo_pos_width - 10,
-                                    rectinfo_pos_x + 10)
+      text_pos_in <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_x + label_edge, 
+                                   rectinfo_pos_x + rectinfo_pos_width - label_edge)
+      text_pos_out <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_x + rectinfo_pos_width - label_edge,
+                                    rectinfo_pos_x + label_edge)
       
     } else {
       
       text_pos_center <- rectinfo_pos_y + (rectinfo_pos_height/2)
-      text_pos_in <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_y + rectinfo_pos_height - 10, 
-                                   rectinfo_pos_y + 10)
-      text_pos_out <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_y + 10,
-                                    rectinfo_pos_y + rectinfo_pos_height - 10)
+      text_pos_in <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_y + rectinfo_pos_height - label_edge, 
+                                   rectinfo_pos_y + label_edge)
+      text_pos_out <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_y + label_edge,
+                                    rectinfo_pos_y + rectinfo_pos_height - label_edge)
       
     }
     
@@ -678,42 +678,85 @@ diffBar_edit_texts <- function (barLabels, order_labels, values, rects, order_re
   
 }
 
-# Differenzbalken Hauptfunktion
-diffBar <- function(svg_in, values, group_name, frame_name, frame0_name, scale_real, alignment, hasLabels = TRUE, labelPosition = "center", displayLimit = 0) {
+
+#' Passt Differenzbalkendiagramm an
+#' 
+#' @description Passt ein in der SVG-Datei vorgefertigtes Differenzbalkendiagramm horizontal oder vertikal an. Vorbereitung: Balkensegmente und Wertelabels sind im SVG zu gruppieren. Mehrere solche Gruppen (Balken) können wiederum gruppiert werden. Die äußerste Gruppe ist zu benennen.
+#' @param svg_in SVG als XML document
+#' @param frame_name Name des Rechtseck-Elements mit dem Rahmen des Diagrammbereichs
+#' @param frame0_name Name der 0er-Linie
+#' @param group_name Name der Gruppe mit den Balkenelementen bzw. mehreren Balken
+#' @param scale_real Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))
+#' @param values Dataframe mit den Werten, eine Zeile pro Balken
+#' @param alignment Ausrichtung der Balken. Entweder "horizontal" (default) oder "vertikal"
+#' @param has_labels Sollen Wertelabels angezeigt werden? (Default TRUE)
+#' @param label_position Position der Wertelabels (Default "center")
+#' @param decimals Anzahl der Dezimalstellen der Wertelabels (Default 0)
+#' @param display_limit Unter welchem Wert sollen Wertelabels unterdrückt werden? (Default 0)
+#' @param label_edge Abstand der Labels zum Balkenmaximum bei label_position start/end. (Default 10)
+#' @return adaptiertes SVG als XML document
+#' @export
+diffBar <- function(svg, frame_name, frame0_name, group_name, scale_real, values, alignment, has_labels = TRUE, label_position = "center", decimals = 0, displayLimit = 0, label_edge = 10) {
+  
+  # check alignment string
+  if (!(alignment %in% c("horizontal","vertikal"))) stop("FEHLER: alignment muss 'horizontal' oder 'vertikal' sein!")
   
   # get frame info and scaling
   frame_info <- frame_and_scaling(svg_in, frame_name, scale_real)
   
-  # if input-values == vector: transform to data.frame to get 1 row
-  if (base::is.null(base::nrow(values))) {values <- base::t(base::data.frame(values))}
+  # if input-values == vector: transform to data.frame to get n rows
+  if (base::is.null(base::nrow(values))) {values <- base::data.frame(values)}
   
   # get called group
   symbolGroup <- stackedBar_in(svg_in, group_name)
   
-  # get rects
-  rects <- xml2::xml_find_all(symbolGroup, "./rect")
-  if (base::length(rects) != base::length(values)) {stop("Anzahl Rechtecke != Anzahl Werte.")}
+  # get n subgroups
+  n_subgroups <- stackedBar_checkSub(symbolGroup, values)
   
-  # get order of rects
-  order_rects_x <- base::order(base::as.numeric(xml2::xml_attr(rects, "y")))
-  order_rects_y <- base::order(base::as.numeric(xml2::xml_attr(rects, "x")))
-  if (alignment == "horizontal") {order_rects <- order_rects_x}
-  if (alignment == "vertical") {order_rects <- order_rects_y}
+  # get order of (sub)groups in xml depending on x-value and depending on y-value
+  order_groups <- stackedBar_order_groups(symbolGroup, n_subgroups)
+  diffBars_order_x <- order_groups$stackedBars_order_x
+  diffBars_order_y <- order_groups$stackedBars_order_y
   
-  # edit all rects
-  diffBar_edit_rects(rects, values, frame_info, frame0_name, order_rects, alignment)
   
-  # edit text
-  if (hasLabels) {
+  # adjust all rect-elements and text-elements of all groups
+  for (bar_nr in 1:n_subgroups) {
     
-    texts <- xml2::xml_find_all(symbolGroup, "./text")
-    if (base::length(texts) != base::length(values)) {stop("Anzahl Labels != Anzahl Werte.")}
-    order_textOut <- stackedBar_order_text(texts, values)
-    order_labels_x <- order_textOut$order_labels_x
-    order_labels_y <- base::rev(order_textOut$order_labels_y)
-    if (alignment == "horizontal") {order_labels <- order_labels_y}
-    if (alignment == "vertical") {order_labels <- order_labels_x}
-    diffBar_edit_texts(texts, order_labels, values, rects, order_rects, displayLimit, labelPosition, alignment)
+    # values for barSet
+    value_set <- values[bar_nr, ]
+    
+    ## - RECTS
+    # get: barSet, rects of barSet, right ordering
+    if (!n_subgroups == 1) {
+      barSet <- xml2::xml_find_all(symbolGroup, "./g")[diffBars_order_y[bar_nr]]
+    } else {
+      barSet <- symbolGroup
+    }
+    rects <- xml2::xml_find_all(barSet, "./rect")
+    order_rects_x <- base::rank(base::as.numeric(xml2::xml_attr(rects, "x")))
+    order_rects_y <- base::rank(-base::as.numeric(xml2::xml_attr(rects, "y")))
+    if (alignment == "horizontal") {order_rects <- order_rects_x}
+    if (alignment == "vertical") {order_rects <- order_rects_y}
+    
+    # edit rects
+    diffBar_edit_rects(rects, value_set, frame_info, frame0_name, order_rects, alignment)
+    
+    
+    ## -- TEXT/LABELS
+    # get text elements of group and right ordering
+    if (has_labels) {
+      
+      barLabels <- xml2::xml_find_all(barSet, "./text")
+      order_textOut <- stackedBar_order_text(barLabels, value_set)
+      order_labels_x <- order_textOut$order_labels_x
+      order_labels_y <- order_textOut$order_labels_y
+      if (alignment == "horizontal") {order_labels <- order_labels_x}
+      if (alignment == "vertical") {order_labels <- order_labels_y}
+      
+      # adjust values and position of text elements
+      diffBar_edit_texts(barLabels, order_labels, value_set, rects, order_rects, displayLimit, label_position, alignment, label_edge)
+      
+    }
     
   }
   
