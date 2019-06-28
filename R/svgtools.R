@@ -145,16 +145,16 @@ stackedBar_edit_rects <- function(rects, frame_info, value_set, order_rects, ali
            pos_next <- base::as.numeric(xml2::xml_attr(rects[rect_start], "x")) + (value_set[1] * frame_info$scaling_x)
            
            # remaining rects
-           for (rect_nr in 1:base::length (order_rects_x)) {
+           for (rect_nr in 1:base::length (order_rects)) {
              
-             if (order_rects_x[rect_nr] == 1) {
+             if (order_rects[rect_nr] == 1) {
                next
              }
              
              index_rect <- which(order_rects == order_rects[rect_nr])
              xml2::xml_set_attr(rects[index_rect], "x", pos_next)
              xml2::xml_set_attr(rects[index_rect], "width", value_set[order_rects[rect_nr]] * frame_info$scaling_x)
-             pos_next <- pos_next + value_set[order_rects_x[rect_nr]] * frame_info$scaling_x
+             pos_next <- pos_next + value_set[order_rects[rect_nr]] * frame_info$scaling_x
              
            }
            
@@ -244,9 +244,9 @@ stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, orde
               
               # label position
               text_pos_center <- rectinfo_pos_x + (rectinfo_pos_width/2)
-              text_pos_in <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_x + 10, 
+              text_pos_in <- base::ifelse (value_set[order_labels[n_text]] >= 0, rectinfo_pos_x + 10, 
                                            rectinfo_pos_x + rectinfo_pos_width - 10)
-              text_pos_out <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_x + rectinfo_pos_width - 10,
+              text_pos_out <- base::ifelse (value_set[order_labels[n_text]] >= 0, rectinfo_pos_x + rectinfo_pos_width - 10,
                                             rectinfo_pos_x + 10)
               
               if (labelPosition == "center") {text_pos <- text_pos_center}
@@ -289,9 +289,9 @@ stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, orde
               
               # label position
               text_pos_center <- rectinfo_pos_y + (rectinfo_pos_height/2)
-              text_pos_in <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_y + rectinfo_pos_height - 10, 
+              text_pos_in <- base::ifelse (value_set[order_labels[n_text]] >= 0, rectinfo_pos_y + rectinfo_pos_height - 10, 
                                            rectinfo_pos_y + 10)
-              text_pos_out <- base::ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_y + 10,
+              text_pos_out <- base::ifelse (value_set[order_labels[n_text]] >= 0, rectinfo_pos_y + 10,
                                             rectinfo_pos_y + rectinfo_pos_height - 10)
               
               
@@ -420,8 +420,6 @@ summary_svg <- function(svg) {
   }
   used_colors <- base::as.character(stats::na.omit(base::unique(used_colors)))
   base::print(used_colors)
-  
-  
   
 }
 
