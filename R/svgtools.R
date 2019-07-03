@@ -461,7 +461,7 @@ write_svg <- function(svg, file) {
 #' @param group_name Name der Gruppe mit den Balkenelementen bzw. mehreren Balken
 #' @param scale_real Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))
 #' @param values Dataframe mit den Werten, eine Zeile pro Balken
-#' @param alignment Ausrichtung der Balken. Entweder "horizontal" (default) oder "vertikal"
+#' @param alignment Ausrichtung der Balken. Entweder "horizontal" (default) oder "vertical"
 #' @param has_labels Sollen Wertelabels angezeigt werden? (Default TRUE)
 #' @param label_position Position der Wertelabels (Default "center")
 #' @param decimals Anzahl der Dezimalstellen der Wertelabels (Default 0)
@@ -682,13 +682,13 @@ diffBar_edit_texts <- function (barLabels, order_labels, values, rects, order_re
 #' Passt Differenzbalkendiagramm an
 #' 
 #' @description Passt ein in der SVG-Datei vorgefertigtes Differenzbalkendiagramm horizontal oder vertikal an. Vorbereitung: Balkensegmente und Wertelabels sind im SVG zu gruppieren. Mehrere solche Gruppen (Balken) können wiederum gruppiert werden. Die äußerste Gruppe ist zu benennen.
-#' @param svg_in SVG als XML document
+#' @param svg SVG als XML document
 #' @param frame_name Name des Rechtseck-Elements mit dem Rahmen des Diagrammbereichs
 #' @param frame0_name Name der 0er-Linie
 #' @param group_name Name der Gruppe mit den Balkenelementen bzw. mehreren Balken
 #' @param scale_real Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))
 #' @param values Dataframe mit den Werten, eine Zeile pro Balken
-#' @param alignment Ausrichtung der Balken. Entweder "horizontal" (default) oder "vertikal"
+#' @param alignment Ausrichtung der Balken. Entweder "horizontal" (default) oder "vertical"
 #' @param has_labels Sollen Wertelabels angezeigt werden? (Default TRUE)
 #' @param label_position Position der Wertelabels (Default "center")
 #' @param decimals Anzahl der Dezimalstellen der Wertelabels (Default 0)
@@ -702,13 +702,13 @@ diffBar <- function(svg, frame_name, frame0_name, group_name, scale_real, values
   if (!(alignment %in% c("horizontal","vertikal"))) stop("FEHLER: alignment muss 'horizontal' oder 'vertikal' sein!")
   
   # get frame info and scaling
-  frame_info <- frame_and_scaling(svg_in, frame_name, scale_real)
+  frame_info <- frame_and_scaling(svg, frame_name, scale_real)
   
   # if input-values == vector: transform to data.frame to get n rows
   if (base::is.null(base::nrow(values))) {values <- base::data.frame(values)}
   
   # get called group
-  symbolGroup <- stackedBar_in(svg_in, group_name)
+  symbolGroup <- stackedBar_in(svg, group_name)
   
   # get n subgroups
   n_subgroups <- stackedBar_checkSub(symbolGroup, values)
@@ -763,6 +763,295 @@ diffBar <- function(svg, frame_name, frame0_name, group_name, scale_real, values
 }
 
 
+
+
+
+## -- Lines and Symbols
+#' Lines and Symbols: Funktion fuer Kreise
+#' 
+#' @description Passt die Kreise (und Lininen) in der SVG-Datei vorgefertigtes Symboldiagramm horizontal oder vertikal an. Vorbereitung: Kreissegmente und Linien sind im SVG zu gruppieren. Die Gruppe ist zu benennen.
+#' @param svg SVG als XML document
+#' @param group_name Name der Gruppe mit den Kreiselementen (und optional Verbindungslinien).
+#' @param frame_info Bereits eingelesene Informationen ueber den Grafiknamen (via frame_and_scaling eingelesen).
+#' @param value_set Dataframe bzw. Vektor mit den Werten, eine Zeile pro Gruppe
+#' @param alignment Ausrichtung der Symbole Entweder "horizontal" oder "vertical"
+#' @param zeroLine Falls es sich um ein Differenzdiagramm mit 0er Linie handelt: Name der 0er Linie. (Default: NULL)
+#' @return adaptiertes SVG als XML document
+#' @export
+linesSymbols_edit_circles <- function (svg, group_name, frame_info, value_set, alignment, zeroLine = NULL) {
+  
+  # available circles in group
+  lineGroup <- linesSymbols_in(svg, group_name)
+  symbols_inGroup <- xml2::xml_find_all(lineGroup, "./circle")  ## umstellen bei triangles auf symbols
+  
+  # order of circles
+  symbols_order_x <- base::rank(base::as.numeric(xml2::xml_attr(symbols_inGroup, "cx")))
+  symbols_order_y <- base::rank(-base::as.numeric(xml2::xml_attr(symbols_inGroup, "cy")))
+  
+  # frame0 info
+  if (!is.null(zeroLine)) {
+    
+    frame0_x <- xml2::xml_find_all(svg, "./line")
+    frame0_x <- base::as.numeric(xml2::xml_attr(frame0_x[base::which(xml2::xml_attr(frame0_x, "id")
+                                                                     == zeroLine)], "x1"))
+    frame0_y <- xml2::xml_find_all(svg, "./line")
+    frame0_y <- base::as.numeric(xml2::xml_attr(frame0_y[base::which(xml2::xml_attr(frame0_y, "id")
+                                                                     == zeroLine)], "y1"))
+    
+  }
+  
+  
+  base::switch (alignment,
+                
+                horizontal = {
+                  
+                  for (n_symbols in 1:base::length(symbols_inGroup)) {
+                    
+                    symbol_toEdit <- symbols_inGroup[symbols_order_x[n_symbols]]
+                    
+                    if (!is.null(zeroLine)) {
+                      
+                      if (value_set[n_symbols] < 0) {
+                        cy_new <- frame0_y - base::abs(value_set[n_symbols] * frame_info$scaling_y)
+                      }
+                      if (value_set[n_symbols] > 0) {
+                        cy_new <- frame0_y + value_set[n_symbols] * frame_info$scaling_y
+                      }
+                      if (value_set[n_symbols] == 0) {
+                        cy_new <- frame0_y
+                      }
+                      
+                    } else {
+                      
+                      cy_new <- frame_info$max_y - value_set[n_symbols] * frame_info$scaling_y 
+                      
+                    }
+                    
+                    xml2::xml_set_attr(symbol_toEdit, "cy", cy_new)
+                    
+                  }
+                  
+                },
+                
+                vertical = {
+                  
+                  for (n_symbols in 1:base::length(symbols_inGroup)) {
+                    
+                    symbol_toEdit <- symbols_inGroup[symbols_order_y[n_symbols]]
+                    
+                    if (!is.null(zeroLine)) {
+                      
+                      if (value_set[n_symbols] < 0) {
+                        cx_new <- frame0_x - base::abs(value_set[n_symbols] * frame_info$scaling_x)
+                      }
+                      if (value_set[n_symbols] > 0) {
+                        cx_new <- frame0_x + value_set[n_symbols] * frame_info$scaling_x
+                      }
+                      if (value_set[n_symbols] == 0) {
+                        cx_new <- frame0_x
+                      }
+                      
+                    } else {
+                      
+                      cx_new <- frame_info$max_x - value_set[n_symbols] * frame_info$scaling_x 
+                      
+                    }
+                    
+                    xml2::xml_set_attr(symbol_toEdit, "cx", cx_new)
+                    
+                  }
+                  
+                })
+  
+  
+}
+
+
+#' Lines and Symbols: Funktion fuer Rechtecke
+#' 
+#' @description Passt die Rechtecke (und Lininen) in der SVG-Datei vorgefertigtes Symboldiagramm horizontal oder vertikal an. Vorbereitung: Rechtecke und Linien sind im SVG zu gruppieren. Die Gruppe ist zu benennen.
+#' @param svg SVG als XML document
+#' @param group_name Name der Gruppe mit den Rechteckelementen (und optional Verbindungslinien).
+#' @param frame_info Bereits eingelesene Informationen ueber den Grafiknamen (via frame_and_scaling eingelesen).
+#' @param value_set Dataframe bzw. Vektor mit den Werten, eine Zeile pro Gruppe
+#' @param alignment Ausrichtung der Symbole Entweder "horizontal" oder "vertikal"
+#' @param zeroLine Falls es sich um ein Differenzdiagramm mit 0er Linie handelt: Name der 0er Linie. (Default: NULL)
+#' @return adaptiertes SVG als XML document
+#' @export
+linesSymbols_edit_rects <- function (svg, group_name, frame_info, value_set, alignment, zeroLine = NULL) {
+  
+  # available rects in group
+  lineGroup <- linesSymbols_in(svg, group_name)
+  symbols_inGroup <- xml2::xml_find_all(lineGroup, "./rect")  ## umstellen bei triangles auf symbols
+  
+  # order of rects
+  symbols_order_x <- base::rank(base::as.numeric(xml2::xml_attr(symbols_inGroup, "x")))
+  symbols_order_y <- base::rank(base::as.numeric(xml2::xml_attr(symbols_inGroup, "y")))
+  
+  # frame0 info
+  if (!is.null(zeroLine)) {
+    frame0_x <- xml2::xml_find_all(svg, "./line")
+    frame0_x <- base::as.numeric(xml2::xml_attr(frame0_x[base::which(xml2::xml_attr(frame0_x, "id")
+                                                                     == zeroLine)], "x1"))
+    frame0_y <- xml2::xml_find_all(svg, "./line")
+    frame0_y <- base::as.numeric(xml2::xml_attr(frame0_y[base::which(xml2::xml_attr(frame0_y, "id")
+                                                                     == zeroLine)], "y1"))
+  }
+  
+  
+  base::switch (alignment,
+                
+                horizontal = {
+                  
+                  for (n_symbols in 1:base::length(symbols_inGroup)) {
+                    
+                    symbol_toEdit <- symbols_inGroup[symbols_order_x[n_symbols]]
+                    height_half <- base::as.numeric(xml2::xml_attr(symbol_toEdit, "height")) / 2
+                    
+                    if (!is.null(zeroLine)) {
+                      
+                      if (value_set[n_symbols] < 0) {
+                        y_new <- frame0_y - (value_set[n_symbols] * frame_info$scaling_y + height_half)
+                      }
+                      if (value_set[n_symbols] > 0) {
+                        y_new <- frame0_y + (value_set[n_symbols] * frame_info$scaling_y + height_half)
+                      }
+                      if (value_set[n_symbols] == 0) {
+                        y_new <- frame0_y
+                      }
+                      
+                    } else {
+                      
+                      y_new <- frame_info$max_y - (value_set[n_symbols] * frame_info$scaling_y + height_half)
+                      
+                    }
+                    
+                    xml2::xml_set_attr(symbol_toEdit, "y", y_new)
+                    
+                  }
+                  
+                },
+                
+                vertical = {
+                  
+                  for (n_symbols in 1:base::length(symbols_inGroup)) {
+                    
+                    symbol_toEdit <- symbols_inGroup[symbols_order_y[n_symbols]]
+                    width_half <- base::as.numeric(xml2::xml_attr(symbol_toEdit, "width")) / 2
+                    
+                    if (!is.null(zeroLine)) {
+                      
+                      if (value_set[n_symbols] < 0) {
+                        x_new <- frame0_x - base::abs(value_set[n_symbols]) * frame_info$scaling_x - width_half
+                      }
+                      if (value_set[n_symbols] > 0) {
+                        x_new <- frame0_x + value_set[n_symbols] * frame_info$scaling_x - width_half
+                      }
+                      if (value_set[n_symbols] == 0) {
+                        x_new <- frame0_x - width_half
+                      }
+                      
+                    } else {
+                      
+                      x_new <- frame_info$min_x + value_set[n_symbols] * frame_info$scaling_x + width_half
+                      
+                    }
+                    
+                    xml2::xml_set_attr(symbol_toEdit, "x", x_new)
+                    
+                  }
+                  
+                })
+  
+  
+}
+
+
+
+#' Lines and Symbols: Hauptfunktion
+#' 
+#' @description Passt die Symbole (und Lininen) in der SVG-Datei vorgefertigtes Symboldiagramm horizontal oder vertikal an. Vorbereitung: Kreissegmente und Linien sind im SVG zu gruppieren. Die Gruppe ist zu benennen.
+#' @param svg SVG als XML document
+#' @param value_set Dataframe bzw. Vektor mit den Werten, eine Zeile pro Gruppe
+#' @param group_name Name der Gruppe mit den zu bearbeitenden Symbolen (und optional Verbindungslinien).
+#' @param frame_name Name des Grafikrahmens.
+#' @param scale_real Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))
+#' @param alignment Ausrichtung der Symbole. Entweder "horizontal" oder "vertical".
+#' @param symbolType Typ der Symbolgruppe, die angepasst werden soll. Derzeit moeglich: "circle" und "rect".
+#' @param zeroLine Falls es sich um ein Differenzdiagramm mit 0er Linie handelt: Name der 0er Linie. (Default: NULL)
+#' @return adaptiertes SVG als XML document
+#' @export
+linesSymbols <- function (svg, value_set, group_name, frame_name, scale_real, alignment, symbolType = NULL, zeroLine = NULL) {
+  
+  # input check
+  if (!base::is.null(symbolType)) {
+    if (!symbolType %in% c("circle", "rect")) {stop ("Ungueltiger Symboltyp.")}
+  }
+  
+  # get frame info and scaling
+  frame_info <- frame_and_scaling(svg, frame_name, scale_real)
+  
+  # if input-values == vector: transform to data.frame to get 1 row
+  #if (base::is.null(base::nrow(values))) {values <- base::t(base::data.frame(values))}
+  
+  # get called group
+  linesSymbolsGroup <- stackedBar_in(svg, group_name)
+
+  # 1 - Lines
+  lineGroup <- linesSymbols_in(svg, group_name)
+  lines_inGroup <- xml2::xml_find_all(lineGroup, "./line")
+  
+  if (symbolType == "x") {
+    
+    # filter lines and symbols (muss hier extra sein, da alles linien sind)
+    x1_values <- base::as.numeric(xml2::xml_attr(lines_inGroup, "x1"))
+    index_symbols <- base::which(x1_values %in% x1_values[base::which(base::duplicated(x1_values))])
+    # filter lines
+    lines_inGroup <- lines_inGroup[-index_symbols]
+    
+  }
+  
+  
+  if (base::length(lines_inGroup) == 0) {
+    warning ("Keine Linienelemente in der Gruppe vorhanden.")
+  } else {
+    order_lines <- linesSymbols_order_lines(lines_inGroup, alignment)
+    linesSymbols_edit_lines (lines_inGroup, order_lines, frame_info, value_set)
+  }
+  
+  # 2 - Symbols
+  if (!base::is.null(symbolType)) {
+    
+    base::switch (symbolType,
+                  
+                  # triangle = {
+                  #   
+                  #   linesSymbols_edit_triangles(svg_in, group_name, frame_info, value_set, alignment)
+                  #   
+                  # },
+                  
+                  circle = {
+                    
+                    linesSymbols_edit_cirles(svg, group_name, frame_info, value_set, alignment)
+                    
+                  },
+                  
+                  rect = {
+                    
+                    linesSymbols_edit_rects(svg, group_name, frame_info, value_set, alignment)
+                  })
+    
+    # },
+    # 
+    # x = {
+    #   
+    #   linesSymbols_edit_xs(svg_in, group_name, frame_info, value_set, alignment)
+    #   
+    # })
+    
+  }  ## TODO: weitere Symbole
+  
+}
 
 
 
