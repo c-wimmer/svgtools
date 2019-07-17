@@ -542,12 +542,12 @@ stackedBar <- function(svg, frame_name, group_name, scale_real, values, alignmen
 
 ## -- Differenzbalken
 # Differenzbalken edit rects
-diffBar_edit_rects <- function (rects, values, frame_info, frame0_name, order_rects, alignment) {
+diffBar_edit_rects <- function (svg, rects, values, frame_info, frame0_name, order_rects, alignment) {
   
-  frame0_x <- xml2::xml_find_all(svg_in, "./line")
+  frame0_x <- xml2::xml_find_all(svg, "./line")
   frame0_x <- base::as.numeric(xml2::xml_attr(frame0_x[base::which(xml2::xml_attr(frame0_x, "id")
                                                                    == frame0_name)], "x1"))
-  frame0_y <- xml2::xml_find_all(svg_in, "./line")
+  frame0_y <- xml2::xml_find_all(svg, "./line")
   frame0_y <- base::as.numeric(xml2::xml_attr(frame0_y[base::which(xml2::xml_attr(frame0_y, "id")
                                                                    == frame0_name)], "y1"))
   
@@ -739,7 +739,7 @@ diffBar <- function(svg, frame_name, frame0_name, group_name, scale_real, values
     if (alignment == "vertical") {order_rects <- order_rects_y}
     
     # edit rects
-    diffBar_edit_rects(rects, value_set, frame_info, frame0_name, order_rects, alignment)
+    diffBar_edit_rects(svg, rects, value_set, frame_info, frame0_name, order_rects, alignment)
     
     
     ## -- TEXT/LABELS
