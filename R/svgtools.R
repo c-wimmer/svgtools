@@ -620,16 +620,21 @@ diffBar_edit_rects <- function (svg, rects, values, frame_info, frame0_name, ord
 }
 
 # Differenzbalken edit text
-diffBar_edit_texts <- function (barLabels, order_labels, values, rects, order_rects, displayLimit, labelPosition, alignment, label_edge) {
+diffBar_edit_texts <- function (barLabels, order_labels, values, rects, order_rects, displayLimits, decimals, labelPosition, alignment, label_edge, ignore_rotation=TRUE) {
+  
+  if (length(displayLimits)>1) displayLimitRange <- c(min(displayLimits),max(displayLimits))
+  if (length(displayLimits)==1) displayLimitRange <- c(-abs(displayLimits),abs(displayLimits))
   
   for (n_text in 1:base::length(barLabels)) {
     
     # change value
     text_toChange <- barLabels[n_text]
-    xml2::xml_text(text_toChange) <- base::as.character(values[order_labels[n_text]])
+    numvalue <- values[order_labels[n_text]]
+    value <- base::format(round(numvalue,decimals),nsmall=decimals,decimal.mark=",",big.mark="",small.mark="")
+    xml2::xml_text(text_toChange) <- value
     
     # comply with displayLimit
-    if ((base::abs(values[order_labels[n_text]]) < displayLimit) | (values[order_labels[n_text]] == 0)) {
+    if ((values[order_labels[n_text]] > displayLimitRange[1] & values[order_labels[n_text]] < displayLimitRange[2]) | (values[order_labels[n_text]] == 0)) {
       xml2::xml_set_attr(text_toChange, "display", "none")
     }
     
@@ -661,18 +666,45 @@ diffBar_edit_texts <- function (barLabels, order_labels, values, rects, order_re
     if (labelPosition == "start") {text_pos <- text_pos_in}
     if (labelPosition == "end") {text_pos <- text_pos_out}
     
-    text_matrix <- xml2::xml_attr(text_toChange, "transform")
-    matrix_values_start <- stringr::str_locate(text_matrix, "matrix\\(")
-    matrix_values <- stringr::str_sub(text_matrix, (matrix_values_start[2] + 1), (base::nchar(text_matrix) - 1))
-    matrix_values <- base::as.numeric(base::unlist(base::strsplit(matrix_values, split = " ")))
+    if (!is.na(xml2::xml_attr(text_toChange,"transform")))
+    {
+      text_matrix <- xml2::xml_attr(text_toChange, "transform")
+      matrix_values_start <- stringr::str_locate(text_matrix, "matrix\\(")
+      matrix_values <- stringr::str_sub(text_matrix, (matrix_values_start[2] + 1), (base::nchar(text_matrix) - 1))
+      matrix_values <- base::as.numeric(base::unlist(base::strsplit(matrix_values, split = " ")))
+      pos_x <- matrix_values[5]
+      pos_y <- matrix_values[6]
+      hasTransformAttr <- TRUE
+    }
+    if (is.na(xml2::xml_attr(text_toChange,"transform")))
+    {
+      pos_x <- xml2::xml_attr(text_toChange,"x")
+      pos_y <- xml2::xml_attr(text_toChange,"y")
+      hasTransformAttr <- FALSE
+    }
     
-    base::ifelse (alignment == "horizontal", matrix_values[5] <- text_pos, matrix_values[6] <- text_pos)
+    if (!ignore_rotation && hasTransformAttr)
+    {
+      base::ifelse (alignment == "horizontal", matrix_values[5] <- text_pos, matrix_values[6] <- text_pos)
+      
+      text_pos_matrix <- base::paste0("matrix(", matrix_values[1], " ", matrix_values[2], " ", matrix_values[3], " ", 
+                                      matrix_values[4], " ", matrix_values[5], " ", matrix_values[6], ")")
+      
+      xml2::xml_set_attr(text_toChange, "transform", text_pos_matrix)
+      xml2::xml_set_attr(text_toChange, "text-anchor", "middle")
+    }
     
-    text_pos_matrix <- base::paste0("matrix(", matrix_values[1], " ", matrix_values[2], " ", matrix_values[3], " ", 
-                                    matrix_values[4], " ", matrix_values[5], " ", matrix_values[6], ")")
-    
-    xml2::xml_set_attr(text_toChange, "transform", text_pos_matrix)
-    xml2::xml_set_attr(text_toChange, "text-anchor", "middle")
+    if (ignore_rotation || !hasTransformAttr)
+    {
+      if (alignment=="horizontal") pos_x <- text_pos
+      if (alignment=="vertikal") pos_y <- text_pos
+      xml2::xml_set_attr(text_toChange, "x", pos_x)
+      xml2::xml_set_attr(text_toChange, "y", pos_y)
+      xml2::xml_set_attr(text_toChange, "transform", NULL)
+      if (labelPosition == "start") xml2::xml_set_attr(text_toChange, "text-anchor", ifelse(numvalue>0,"start","end"))
+      if (labelPosition == "center") xml2::xml_set_attr(text_toChange, "text-anchor", "middle")
+      if (labelPosition == "end") xml2::xml_set_attr(text_toChange, "text-anchor", ifelse(numvalue>0,"end","start"))
+    }
     
   }
   
@@ -692,11 +724,12 @@ diffBar_edit_texts <- function (barLabels, order_labels, values, rects, order_re
 #' @param has_labels Sollen Wertelabels angezeigt werden? (Default TRUE)
 #' @param label_position Position der Wertelabels (Default "center")
 #' @param decimals Anzahl der Dezimalstellen der Wertelabels (Default 0)
-#' @param display_limit Unter welchem Wert sollen Wertelabels unterdrückt werden? (Default 0)
+#' @param display_limits Zwischen welchen Werten (Minimum und Maximum) rund um Null sollen Wertelabels unterdrückt werden? (Default c(0,0) = keine unterdrückten Werte)
 #' @param label_edge Abstand der Labels zum Balkenmaximum bei label_position start/end. (Default 10)
+#' @param ignore_rotation Soll ggf. Rotation der vorbereiteten Textelemente ignoriert werden? (Default TRUE)
 #' @return adaptiertes SVG als XML document
 #' @export
-diffBar <- function(svg, frame_name, frame0_name, group_name, scale_real, values, alignment, has_labels = TRUE, label_position = "center", decimals = 0, displayLimit = 0, label_edge = 10) {
+diffBar <- function(svg, frame_name, frame0_name, group_name, scale_real, values, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limits = c(0,0), label_edge = 10, ignore_rotation = TRUE) {
   
   # check alignment string
   if (!(alignment %in% c("horizontal","vertikal"))) stop("FEHLER: alignment muss 'horizontal' oder 'vertikal' sein!")
@@ -754,11 +787,13 @@ diffBar <- function(svg, frame_name, frame0_name, group_name, scale_real, values
       if (alignment == "vertical") {order_labels <- order_labels_y}
       
       # adjust values and position of text elements
-      diffBar_edit_texts(barLabels, order_labels, value_set, rects, order_rects, displayLimit, label_position, alignment, label_edge)
+      diffBar_edit_texts(barLabels, order_labels, value_set, rects, order_rects, display_limits, decimals, label_position, alignment, label_edge, ignore_rotation)
       
     }
     
   }
+  
+  return(svg)
   
 }
 
