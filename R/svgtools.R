@@ -812,7 +812,6 @@ diffBar <- function(svg, frame_name, frame0_name, group_name, scale_real, values
 #' @param alignment Ausrichtung der Symbole Entweder "horizontal" oder "vertical"
 #' @param zeroLine Falls es sich um ein Differenzdiagramm mit 0er Linie handelt: Name der 0er Linie. (Default: NULL)
 #' @return adaptiertes SVG als XML document
-#' @export
 linesSymbols_edit_circles <- function (svg, group_name, frame_info, value_set, alignment, zeroLine = NULL) {
   
   # available circles in group
@@ -912,7 +911,6 @@ linesSymbols_edit_circles <- function (svg, group_name, frame_info, value_set, a
 #' @param alignment Ausrichtung der Symbole Entweder "horizontal" oder "vertikal"
 #' @param zeroLine Falls es sich um ein Differenzdiagramm mit 0er Linie handelt: Name der 0er Linie. (Default: NULL)
 #' @return adaptiertes SVG als XML document
-#' @export
 linesSymbols_edit_rects <- function (svg, group_name, frame_info, value_set, alignment, zeroLine = NULL) {
   
   # available rects in group
@@ -1399,18 +1397,22 @@ svg_setElementColor <- function(svg_in, element_name, element_type, color_new) {
 }
 
 
-
 #' Ersetzt Text in Textelement
 #' 
 #' @description Passt ein in der SVG-Datei vorhandenes Textelement an. Kann entweder via Textinhalt selbst oder via Benennung des Textelements angewendet werden.
 #' @param svg SVG als XML document
 #' @param element_name Name des Textelements bzw. Textinhalt des Textelements, wenn dieses nicht gesondert beschriftet ist.
-#' @param text_new Text der eingetragen werden soll.
+#' @param text Text der eingetragen werden soll.
 #' @param alignment Textausrichtung. Moegliche Parameter: start, middle, end. (Default NULL)
-#' @param inGroup In welcher Gruppe befindet sich das Textelement (Default NULL).
+#' @param in_group In welcher Gruppe befindet sich das Textelement (Default NULL).
+#' @param hide_blank Soll Textelement versteckt werden, wenn es leer ist? (Default FALSE)
 #' @return adaptiertes SVG als XML document
 #' @export
-svg_setElementText <- function(svg, element_name, text_new, alignment = NULL, inGroup = NULL) {
+changeText <- function(svg, element_name, text, alignment = NULL, in_group = NULL, hide_blank = FALSE) {
+  return(svg_setElementText(svg = svg,element_name = element_name,text_new = text,alignment = alignment,inGroup = in_group, hide_blank = hide_blank))
+}
+  
+svg_setElementText <- function(svg, element_name, text_new, alignment = NULL, inGroup = NULL, hide_blank = FALSE) {
   
   if (!is.null(inGroup)) {
     availableGroups <- xml2::xml_find_all(svg, "g")
@@ -1437,6 +1439,8 @@ svg_setElementText <- function(svg, element_name, text_new, alignment = NULL, in
         xml2::xml_set_attr(elements[base::which(xml2::xml_attr(elements, "id") == 
                                                   element_name[element_nr])], "text-anchor", alignment)
       }
+      # hide if blank
+      if (nchar(text_new)==0 && hide_blank) xml2::xml_set_attr(elements[base::which(xml2::xml_attr(elements, "id") == element_name[element_nr])], "display", "none")
       
     } else {
       # edit text
@@ -1449,10 +1453,13 @@ svg_setElementText <- function(svg, element_name, text_new, alignment = NULL, in
                                                   element_name[element_nr])], "text-anchor", alignment)
       }
       
+      # hide if blank
+      if (nchar(text_new)==0 && hide_blank) xml2::xml_set_attr(elements[base::which(xml2::xml_text(elements) == element_name[element_nr])], "display", "none")
     }
     
   }
   
+  return(svg)
 }
 
 
