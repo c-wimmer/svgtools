@@ -74,10 +74,10 @@ stackedBar_order_groups <- function(stackedBarGroup, n_subgroups) {
   
   if (!n_subgroups == 1) {
     
-    for (n_children in 1:base::length(xml2::xml_children(stackedBarGroup))) {
+    for (n_children in 1:base::length(xml2::xml_find_all(stackedBarGroup,"./g"))) {
       
       # get y and x value of rects (min)
-      barSet <- xml2::xml_children(stackedBarGroup)[n_children]
+      barSet <- xml2::xml_find_all(stackedBarGroup,"./g")[n_children]
       rects <- xml2::xml_find_all(barSet, "./rect")
       rects_value_y <- c(rects_value_y, base::min(base::as.numeric(xml2::xml_attr(rects, "y"))))
       rects_value_x <- c(rects_value_x, base::min(base::as.numeric(xml2::xml_attr(rects, "x"))))
