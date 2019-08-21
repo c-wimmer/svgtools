@@ -5,8 +5,8 @@
 \title{Passt Balkendiagramm an}
 \usage{
 stackedBar(svg, frame_name, group_name, scale_real, values,
-  alignment = "horizontal", has_labels = TRUE, label_position = "center",
-  decimals = 0, display_limit = 0)
+  alignment = "horizontal", has_labels = TRUE,
+  label_position = "center", decimals = 0, display_limit = 0)
 }
 \arguments{
 \item{svg}{SVG als XML document}
@@ -19,7 +19,7 @@ stackedBar(svg, frame_name, group_name, scale_real, values,
 
 \item{values}{Dataframe mit den Werten, eine Zeile pro Balken}
 
-\item{alignment}{Ausrichtung der Balken. Entweder "horizontal" (default) oder "vertikal"}
+\item{alignment}{Ausrichtung der Balken. Entweder "horizontal" (default) oder "vertical"}
 
 \item{has_labels}{Sollen Wertelabels angezeigt werden? (Default TRUE)}
 

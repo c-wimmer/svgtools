@@ -8,6 +8,6 @@ Maintainer: Christian Wimmer <c.wimmer@bifie.at>
 Description: Rsvg
 License: GPL 2.0
 LazyData: TRUE
-RoxygenNote: 6.1.0
+RoxygenNote: 6.1.1
 Depends: R (>= 3.4.4)
 Imports: xml2, rsvg, magick, stringr

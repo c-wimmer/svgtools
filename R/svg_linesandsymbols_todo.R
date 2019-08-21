@@ -36,15 +36,29 @@ linesSymbols_order_lines <- function (lines_inGroup, alignment) {
 }
 
 ## TODO: alignment
-linesSymbols_edit_lines <- function (lines_inGroup, order_lines, frame_info, value_set) {
+linesSymbols_edit_lines <- function (lines_inGroup, order_lines, frame_info, value_set, alignment) {
   
-  for (n_lines in 1:base::length(lines_inGroup)) {
-    
-    line_toChange <- lines_inGroup[order_lines[n_lines]]
-    
-    xml2::xml_set_attr(line_toChange, "y1", frame_info$max_y - value_set[order_lines[n_lines]] * frame_info$scaling_y)
-    xml2::xml_set_attr(line_toChange, "y2", frame_info$max_y - value_set[order_lines[n_lines] + 1] * frame_info$scaling_y)
-    
+  if (alignment=="horizontal")
+  {
+    for (n_lines in 1:base::length(lines_inGroup)) {
+      
+      line_toChange <- lines_inGroup[order_lines[n_lines]]
+      
+      xml2::xml_set_attr(line_toChange, "x1", frame_info$min_x + value_set[order_lines[n_lines]] * frame_info$scaling_x)
+      xml2::xml_set_attr(line_toChange, "x2", frame_info$min_x + value_set[order_lines[n_lines] + 1] * frame_info$scaling_x)
+      
+    }
+  }
+  if (alignment=="vertical")
+  {
+    for (n_lines in 1:base::length(lines_inGroup)) {
+      
+      line_toChange <- lines_inGroup[order_lines[n_lines]]
+      
+      xml2::xml_set_attr(line_toChange, "y1", frame_info$max_y - value_set[order_lines[n_lines]] * frame_info$scaling_y)
+      xml2::xml_set_attr(line_toChange, "y2", frame_info$max_y - value_set[order_lines[n_lines] + 1] * frame_info$scaling_y)
+      
+    }
   }
   
 }
