@@ -499,11 +499,9 @@ stackedBar <- function(svg, frame_name, group_name, scale_real, values, alignmen
     
     ## - RECTS
     # get: barSet, rects of barSet, right ordering
-    if (!n_subgroups == 1) {
-      barSet <- xml2::xml_find_all(stackedBarGroup, "./g")[stackedBars_order_y[bar_nr]]
-    } else {
-      barSet <- stackedBarGroup
-    }
+    if (length(xml2::xml_find_all(stackedBarGroup, "./g"))!=0) barSet <- xml2::xml_find_all(stackedBarGroup, "./g")[stackedBars_order_y[bar_nr]]
+    if (length(xml2::xml_find_all(stackedBarGroup, "./g"))==0) barSet <- stackedBarGroup #wenn es keine Untergruppen gibt, nimm direkt die übergebene Gruppe
+    
     rects <- xml2::xml_find_all(barSet, "./rect")
     order_rects_x <- base::rank(base::as.numeric(xml2::xml_attr(rects, "x")))
     order_rects_y <- base::rank(-base::as.numeric(xml2::xml_attr(rects, "y")))
