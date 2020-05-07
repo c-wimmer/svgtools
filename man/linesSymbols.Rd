@@ -2,7 +2,7 @@
 % Please edit documentation in R/svgtools.R
 \name{linesSymbols}
 \alias{linesSymbols}
-\title{Lines and Symbols: Hauptfunktion}
+\title{Passt Linien- und Symboldiagramme an}
 \usage{
 linesSymbols(svg, frame_name, group_name, scale_real, values,
   alignment = "horizontal", has_lines = TRUE, symbol_type = NULL,

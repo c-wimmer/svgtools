@@ -2,7 +2,7 @@
 % Please edit documentation in R/svgtools.R
 \name{write_svg}
 \alias{write_svg}
-\title{Schreibt eingelesenes SVG in Datei}
+\title{Schreibt SVG in Datei}
 \usage{
 write_svg(svg, file)
 }
@@ -12,5 +12,5 @@ write_svg(svg, file)
 \item{file}{Dateiname (inkl. Pfad)}
 }
 \description{
-Schreibt eingelesenes SVG in Datei
+Schreibt SVG in Datei
 }

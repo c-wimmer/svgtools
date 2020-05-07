@@ -1,9 +1,137 @@
-## svgtools
-## Paket zum Anpassen von SVG-Vorlagen
+### svgtools
+### Paket zum Anpassen von SVG-Vorlagen
 
-## -- HILFSFUNKTIONEN
+### DATEIMANAGEMENT ----
 
+#' Liest eine SVG-Datei ein
+#' @param file Dateiname (inkl. Pfad)
+#' @param enc Encoding (default: "UTF-8")
+#' @param summary Soll Zusammenfassung ueber SVG-File (Anzahl Gruppen, verwendete Farben...) angezeigt werden? (default: FALSE)
+#' @param display Soll eingelesenes SVG im R-Studio Viewer mithilfe des packages "magick" angezeigt werden? (default: FALSE)
+#' @return SVG als XML document
+#' @export
+#dep: xml2, summary_svg, display_svg
+read_svg <- function(file, enc = "UTF-8", summary = FALSE, display = FALSE) {
+  
+  # read xml
+  svg_in <- xml2::read_xml(x = file, encoding = enc, options = c("PEDANTIC","NOBLANKS","NSCLEAN"))
+  svg_in <- xml2::xml_ns_strip(svg_in)
+  
+  # print summary
+  if (summary) {summary_svg(svg_in)}
+  
+  # print svg
+  if (display) {display_svg(svg_in)}
+  
+  # return
+  return(svg_in)
+  
+}
 
+#' Gibt eine Summary von eingelesenem SVG auf der Konsole aus
+#' @param svg SVG als XML document
+#' @export
+#dep: xml2
+summary_svg <- function(svg) {
+  
+  print ("************************")
+  print ("** -- SVG SUMMARY: -- **")
+  print ("************************")
+  
+  # Named Groups
+  named_groups <- xml2::xml_find_all(svg, "/svg/g")
+  base::print("-- NAMED GROUPS:")
+  for (group in named_groups)
+  {
+    if (xml2::xml_has_attr(group, "id"))
+    {
+      group_name <- xml2::xml_attr(group, "id")
+      num_children <- base::length(xml2::xml_children(group))
+      base::print(base::paste0(group_name ," with ", num_children, " children"))
+    }
+  }
+  
+  # Available Frames
+  rects <- xml2::xml_find_all(svg, "/svg/rect")
+  base::print("-- AVAILABLE FRAMES:")
+  for (rect in rects) {
+    if (xml2::xml_has_attr(rect, "id"))
+    {
+      base::print(xml2::xml_attr(rect, "id"))
+    }
+  }
+  
+  # Used Fonts
+  base::print("-- USED FONTS:")
+  svg_all_elements <- xml2::xml_contents(svg)
+  text_elements <- xml2::xml_find_all(svg_all_elements, "text")
+  used_fonts <- NULL
+  for (font in text_elements) {
+    used_fonts <- c(used_fonts, xml2::xml_attr(font, "font-family"))
+  }
+  base::print(base::unique(used_fonts))
+  
+  # Used Font Sizes
+  base::print("-- USED FONT SIZES:")
+  used_sizes <- NULL
+  for (size in text_elements) {
+    used_sizes <- c(used_sizes, xml2::xml_attr(font, "font-size"))
+  }
+  base::print(base::unique(used_sizes))
+  
+  # Colors
+  base::print("-- USED COLORS:")
+  line_elements <- xml2::xml_find_all(svg_all_elements, "line")
+  rect_elements <- xml2::xml_find_all(svg_all_elements, "rect")
+  used_colors <- NULL
+  for (col in text_elements) {
+    used_colors <- c(used_colors, xml2::xml_attr(xml2::xml_children(col), "fill"))
+  }
+  for (col in rect_elements) {
+    used_colors <- c(used_colors, xml2::xml_attr(col, "fill"))
+  }
+  for (col in line_elements) {
+    used_colors <- c(used_colors, xml2::xml_attr(col, "stroke"))
+  }
+  for (col in line_elements) {
+    used_colors <- c(used_colors, xml2::xml_attr(col, "fill"))
+  }
+  used_colors <- base::as.character(stats::na.omit(base::unique(used_colors)))
+  base::print(used_colors)
+  
+}
+
+#' Zeigt eingelesenes SVG an
+#' 
+#' @description Die Funktionalitaet haengt von der Entwicklungsumgebung ab. In RStudio wird das SVG im Viewer angezeigt.
+#' @param svg SVG als XML document
+#' @param width gewuenschte Breite (in Pixel) der Ausgabe (default: NULL)
+#' @param height gewuenschte Hoehe (in Pixel) der Ausgabe (default: NULL)
+#' @details Wenn weder Breite noch Hoehe angegeben werden, wird die Originalgroesse (gegeben DPI) ausgegeben. Wenn nur einer dieser Parameter angegeben wird, wird der andere entsprechend des Originalverhaeltnisses automatisch skaliert.
+#' @export
+#dep: magick
+display_svg <- function(svg, width = NULL, height = NULL) {
+  rsvg <- rsvg::rsvg(charToRaw(toString(svg)),width = width,height = height) #wandelt das XML-Objekt zunaechst in einen String und dann in Bytes um; wird von von rsvg zu bitmap gerendert
+  base::print(magick::image_read(rsvg))
+}
+
+#' Schreibt SVG in Datei
+#' @param svg SVG als XML document
+#' @param file Dateiname (inkl. Pfad)
+#' @export
+#dep: xml2, magick
+write_svg <- function(svg, file) {
+  
+  # add default namespace
+  xml2::xml_set_attr(xml2::xml_find_all(svg, "/svg"), "xmlns", "http://www.w3.org/2000/svg")
+  
+  # write svg
+  xml2::write_xml(x = svg, file = file)
+  #cat("svg gespeichert als: ", file, "\n")
+  
+}
+
+### ALLGEMEINE HILFSFUNKTIONEN ----
 
 ## -- frame_and_scaling: Hilfsfunktion: Liest Infos des genannten Rahmens aus und berechnet Skalierung
 # svg_in: svg objekt
@@ -64,6 +192,98 @@ frame_and_scaling <- function(svg_in, frame_name, scale_minToMax) {
   return(frame_current)
   
 }
+
+
+# elemente ausblenden
+svg_hideElement <- function(svg_in, element_name, element_type) {
+  
+  if (element_type == "text") {
+    
+    elements <- xml2::xml_find_all(svg_in, "./text")
+    
+    for (element_nr in 1:base::length(element_name)) {
+      
+      element_search <- svg_TextToSvgFormat(element_name[element_nr])
+      check1 <- base::length(base::which(xml2::xml_text(elements) == element_search)) == 0
+      check2 <- base::length(base::which(xml2::xml_attr(elements, "id") == element_search)) == 0
+      
+      
+      if (check1 & check2) {stop (base::paste0("Kein Textelement mit der Bezeichnung ", element_name[element_nr], " gefunden."))}
+      
+      if (base::length(base::which(xml2::xml_text(elements) == element_search)) == 0) {
+        xml2::xml_set_attr(elements[base::which(xml2::xml_attr(elements, "id") == 
+                                                  element_search)], "display", "none")
+      } else {
+        xml2::xml_set_attr(elements[base::which(xml2::xml_text(elements) == 
+                                                  element_search)], "display", "none")
+      }
+      
+    }
+    
+  } else {
+    
+    elements <- xml2::xml_find_all(svg_in, base::paste0("./", element_type))
+    
+    for (element_nr in 1:base::length(element_name)) {
+      
+      element_search <- svg_TextToSvgFormat(element_name[element_nr])
+      xml2::xml_set_attr(elements[base::which(xml2::xml_attr(elements, "id") == 
+                                                element_search)], "display", "none")
+      
+    }
+    
+  }
+  
+}
+
+# wandelt strings in svg-style Strings um
+svg_TextToSvgFormat <- function(input_text) {
+  
+  input_text <- base::gsub("_", "_x5F_", input_text)
+  input_text <- base::gsub("\\(", "_x28_", input_text)
+  input_text <- base::gsub("\\)", "_x29_", input_text)
+  input_text <- base::gsub("\\,", "C", input_text)
+  input_text <- base::gsub("\\;", "_x3B_", input_text)
+  input_text <- base::gsub(" ", "__", input_text)
+  input_text <- base::gsub("--", "_x2013_", input_text)
+  input_text <- base::gsub("\\*", "_x2A_", input_text)
+  return(input_text)
+  
+}
+
+# Liest Farbcode von einem Element aus
+svg_getElementColor <- function(svg_in, element_name, element_type) {
+  
+  elements <- xml2::xml_find_all(svg_in, base::paste0("./", element_type))
+  color_out <- NULL
+  
+  for (element_nr in 1:base::length(element_name)) {
+    
+    
+    color_out <- c(color_out, xml2::xml_attr(elements[base::which(xml2::xml_attr(elements, "id") == 
+                                                                    element_name[element_nr])], "fill"))
+    
+  }
+  
+  return(color_out)
+  
+}
+
+# Ersetzt Farbcode eines Elements
+svg_setElementColor <- function(svg_in, element_name, element_type, color_new) {
+  
+  elements <- xml2::xml_find_all(svg_in, base::paste0("./", element_type))
+  
+  for (element_nr in 1:base::length(element_name)) {
+    
+    xml2::xml_set_attr(elements[base::which(xml2::xml_attr(elements, "id") == 
+                                              element_name[element_nr])], "fill", color_new[element_nr])
+    
+  }
+  
+}
+
+### BALKENDIAGRAMME ----
 
 # stackedBar_order_groups: Hilfsfunktion
 # returns the order of the subgroups depending on the x and y values so that the input values can be mapped correctly to the
@@ -317,140 +537,221 @@ stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, orde
   
 }
 
-
-
-
-
-
-
-## -- HAUPTFUNKTIONEN
-
-#' Liest eine SVG-Datei ein
-#' @param file Dateiname (inkl. Pfad)
-#' @param enc Encoding (default: "UTF-8")
-#' @param summary Soll Zusammenfassung ueber SVG-File (Anzahl Gruppen, verwendete Farben...) angezeigt werden? (default: FALSE)
-#' @param display Soll eingelesenes SVG im R-Studio Viewer mithilfe des packages "magick" angezeigt werden? (default: FALSE)
-#' @return SVG als XML document
-#' @export
-#dep: xml2, summary_svg, display_svg
-read_svg <- function(file, enc = "UTF-8", summary = FALSE, display = FALSE) {
+# Passt Balkenelemente und Textelement hinsichtlich Ausrichtung an
+stackedBar_adjust <- function(svg_in, group_name, alignment, ref_rect = NULL, ref_text = NULL) {
   
-  # read xml
-  svg_in <- xml2::read_xml(x = file, encoding = enc, options = c("PEDANTIC","NOBLANKS","NSCLEAN"))
-  svg_in <- xml2::xml_ns_strip(svg_in)
+  # check
+  if (!(alignment %in% c("horizontal", "vertical"))) {stop("alignment paramenter muss 'horizontal' oder 'vertical' sein.")}
   
-  # print summary
-  if (summary) {summary_svg(svg_in)}
+  # check if subgroup has to be adjusted
+  subgroup <- ifelse (base::grepl("/", group_name) == FALSE, FALSE, TRUE)
+  # check if all subgroups should be adjusted
+  if (subgroup) {
+    subgroup_all <- ifelse (base::substr(group_name, base::nchar(group_name), base::nchar(group_name)) == "/", TRUE, FALSE)
+  }
   
-  # print svg
-  if (display) {display_svg(svg_in)}
   
-  # return
-  return(svg_in)
+  subgroup_levels <- base::length(base::unlist(base::strsplit(group_name, split = "/")))  ## TODO
   
-}
-
-#' Gibt eine Summary von eingelesenem SVG auf der Konsole aus
-#' @param svg SVG als XML document
-#' @export
-#dep: xml2
-summary_svg <- function(svg) {
+  group_name_main <- base::unlist(base::strsplit(group_name, split = "/"))[1]
+  group_name_sub <- base::unlist(base::strsplit(group_name, split = "/"))[2]
   
-  print ("************************")
-  print ("** -- SVG SUMMARY: -- **")
-  print ("************************")
+  symbolGroup <- stackedBar_in(svg_in, group_name_main)
+  symbolGroup_subs <- xml2::xml_find_all(symbolGroup, "g")
   
-  # Named Groups
-  named_groups <- xml2::xml_find_all(svg, "/svg/g")
-  base::print("-- NAMED GROUPS:")
-  for (group in named_groups)
-  {
-    if (xml2::xml_has_attr(group, "id"))
-    {
-      group_name <- xml2::xml_attr(group, "id")
-      num_children <- base::length(xml2::xml_children(group))
-      base::print(base::paste0(group_name ," with ", num_children, " children"))
+  if (subgroup_all) {
+    symbolGroup_edit <- symbolGroup
+  } else if (subgroup) {
+    symbolGroup_edit <- symbolGroup_subs[base::which(xml2::xml_attr(symbolGroup_subs, "id") == group_name_sub)]
+  } else {
+    symbolGroup_edit <- symbolGroup
+  }
+  
+  
+  n_subgroups <- base::length(xml2::xml_find_all(symbolGroup_edit, "g"))
+  if (n_subgroups == 0) {
+    n_subgroups <- 1
+  }
+  
+  
+  # edit rect position
+  if (!is.null(ref_rect)) {
+    
+    for (n_groups in 1:n_subgroups) {
+      
+      if (n_subgroups == 1) {
+        group_toEdit <- symbolGroup_edit
+      } else {
+        group_toEdit <- xml2::xml_find_all(symbolGroup_edit, "./g")[n_groups]
+      }
+      rects <- xml2::xml_find_all(group_toEdit, "./rect")
+      order_rects_x <- base::rank(base::as.numeric(xml2::xml_attr(rects, "x")))
+      order_rects_y <- base::rank(-base::as.numeric(xml2::xml_attr(rects, "y")))
+      if (alignment == "horizontal") {order_rects <- order_rects_x}
+      if (alignment == "vertical") {order_rects <- order_rects_y}
+      x_adjust <- xml2::xml_attr(rects[base::which(order_rects == ref_rect)], "x")
+      y_adjust <- xml2::xml_attr(rects[base::which(order_rects == ref_rect)], "y")
+      value_adjust <- base::ifelse (alignment == "horizontal", y_adjust, x_adjust)
+      variable_adjust <- base::ifelse (alignment == "horizontal", "y", "x")
+      
+      for (rect_nr in 1:base::length(rects)) {
+        
+        xml2::xml_set_attr(rects[order_rects[rect_nr]], variable_adjust, value_adjust)
+        
+      }
+      
     }
+    
   }
   
-  # Available Frames
-  rects <- xml2::xml_find_all(svg, "/svg/rect")
-  base::print("-- AVAILABLE FRAMES:")
-  for (rect in rects) {
-    if (xml2::xml_has_attr(rect, "id"))
-    {
-      base::print(xml2::xml_attr(rect, "id"))
+  ## edit text position
+  if (!is.null(ref_text)) {
+    
+    for (n_groups in 1:n_subgroups) {
+      
+      if (n_subgroups == 1) {
+        group_toEdit <- symbolGroup_edit
+      } else {
+        group_toEdit <- xml2::xml_find_all(symbolGroup_edit, "./g")[n_groups]
+      }
+      texts <- xml2::xml_find_all(group_toEdit, "./text")
+      
+      order_textOut <- stackedBar_order_text(texts, 1:base::length(texts))
+      order_labels_x <- order_textOut$order_labels_x
+      order_labels_y <- order_textOut$order_labels_y
+      if (alignment == "horizontal") {
+        order_labels <- order_labels_x
+      } else {
+        order_labels <- order_labels_y
+      }
+      
+      text_matrix <- xml2::xml_attr(texts[base::which(order_labels == ref_text)], "transform")
+      matrix_values_start <- stringr::str_locate(text_matrix, "matrix\\(")
+      matrix_values <- stringr::str_sub(text_matrix, (matrix_values_start[2] + 1), (base::nchar(text_matrix) - 1))
+      matrix_values <- base::as.numeric(base::unlist(base::strsplit(matrix_values, split = " ")))
+      
+      value_adjust <- base::ifelse(alignment == "horizontal", matrix_values[6], matrix_values[5])
+      variable_adjust <- base::ifelse(alignment == "horizontal", 6, 5)
+      
+      for (n_text in 1:base::length(texts)) {
+        
+        text_matrix <- xml2::xml_attr(texts[base::which(order_labels == n_text)], "transform")
+        matrix_values_start <- stringr::str_locate(text_matrix, "matrix\\(")
+        matrix_values <- stringr::str_sub(text_matrix, (matrix_values_start[2] + 1), (base::nchar(text_matrix) - 1))
+        matrix_values <- base::as.numeric(base::unlist(base::strsplit(matrix_values, split = " ")))
+        matrix_values[variable_adjust] <- value_adjust
+        text_pos_matrix <- base::paste0("matrix(", matrix_values[1], " ", matrix_values[2], " ", matrix_values[3], " ", 
+                                        matrix_values[4], " ", matrix_values[5], " ", matrix_values[6], ")")
+        xml2::xml_set_attr(texts[base::which(order_labels == n_text)], "transform", text_pos_matrix)
+        
+      }
+      
     }
+    
   }
-  
-  # Used Fonts
-  base::print("-- USED FONTS:")
-  svg_all_elements <- xml2::xml_contents(svg)
-  text_elements <- xml2::xml_find_all(svg_all_elements, "text")
-  used_fonts <- NULL
-  for (font in text_elements) {
-    used_fonts <- c(used_fonts, xml2::xml_attr(font, "font-family"))
-  }
-  base::print(base::unique(used_fonts))
-  
-  # Used Font Sizes
-  base::print("-- USED FONT SIZES:")
-  used_sizes <- NULL
-  for (size in text_elements) {
-    used_sizes <- c(used_sizes, xml2::xml_attr(font, "font-size"))
-  }
-  base::print(base::unique(used_sizes))
-  
-  # Colors
-  base::print("-- USED COLORS:")
-  line_elements <- xml2::xml_find_all(svg_all_elements, "line")
-  rect_elements <- xml2::xml_find_all(svg_all_elements, "rect")
-  used_colors <- NULL
-  for (col in text_elements) {
-    used_colors <- c(used_colors, xml2::xml_attr(xml2::xml_children(col), "fill"))
-  }
-  for (col in rect_elements) {
-    used_colors <- c(used_colors, xml2::xml_attr(col, "fill"))
-  }
-  for (col in line_elements) {
-    used_colors <- c(used_colors, xml2::xml_attr(col, "stroke"))
-  }
-  for (col in line_elements) {
-    used_colors <- c(used_colors, xml2::xml_attr(col, "fill"))
-  }
-  used_colors <- base::as.character(stats::na.omit(base::unique(used_colors)))
-  base::print(used_colors)
   
 }
 
-#' Zeigt eingelesenes SVG an
-#' 
-#' @description Die Funktionalitaet haengt von der Entwicklungsumgebung ab. In RStudio wird das SVG im Viewer angezeigt.
-#' @param svg SVG als XML document
-#' @param width gewuenschte Breite (in Pixel) der Ausgabe (default: NULL)
-#' @param height gewuenschte Hoehe (in Pixel) der Ausgabe (default: NULL)
-#' @details Wenn weder Breite noch Hoehe angegeben werden, wird die Originalgroesse (gegeben DPI) ausgegeben. Wenn nur einer dieser Parameter angegeben wird, wird der andere entsprechend des Originalverhaeltnisses automatisch skaliert.
-#' @export
-#dep: magick
-display_svg <- function(svg, width = NULL, height = NULL) {
-  rsvg <- rsvg::rsvg(charToRaw(toString(svg)),width = width,height = height) #wandelt das XML-Objekt zunaechst in einen String und dann in Bytes um; wird von von rsvg zu bitmap gerendert
-  base::print(magick::image_read(rsvg))
-}
-
-#' Schreibt eingelesenes SVG in Datei
-#' @param svg SVG als XML document
-#' @param file Dateiname (inkl. Pfad)
-#' @export
-#dep: xml2, magick
-write_svg <- function(svg, file) {
-
-  # add default namespace
-  xml2::xml_set_attr(xml2::xml_find_all(svg, "/svg"), "xmlns", "http://www.w3.org/2000/svg")
+# Passt Farben von Balkenelementen und Textelementen eines stackedBars an
+stackedBar_setColor <- function(svg_in, group_name, alignment, color_rects = NULL, color_texts = NULL) {
   
-  # write svg
-  xml2::write_xml(x = svg, file = file)
-  #cat("svg gespeichert als: ", file, "\n")
-
+  # check if subgroup has to be adjusted
+  subgroup <- ifelse (base::grepl("/", group_name) == FALSE, FALSE, TRUE)
+  # check if all subgroups should be adjusted
+  if (subgroup) {
+    subgroup_all <- ifelse (base::substr(group_name, base::nchar(group_name), base::nchar(group_name)) == "/", TRUE, FALSE)
+  }
+  
+  subgroup_levels <- base::length(base::unlist(base::strsplit(group_name, split = "/")))  ## TODO
+  
+  group_name_main <- base::unlist(base::strsplit(group_name, split = "/"))[1]
+  group_name_sub <- base::unlist(base::strsplit(group_name, split = "/"))[2]
+  
+  symbolGroup <- stackedBar_in(svg_in, group_name_main)
+  symbolGroup_subs <- xml2::xml_find_all(symbolGroup, "g")
+  
+  if (subgroup_all) {
+    symbolGroup_edit <- symbolGroup
+  } else if (subgroup) {
+    symbolGroup_edit <- symbolGroup_subs[base::which(xml2::xml_attr(symbolGroup_subs, "id") == group_name_sub)]
+  } else {
+    symbolGroup_edit <- symbolGroup
+  }
+  
+  
+  n_subgroups <- base::length(xml2::xml_find_all(symbolGroup_edit, "g"))
+  if (n_subgroups == 0) {
+    n_subgroups <- 1
+  }
+  
+  
+  # rects
+  if (!base::is.null(color_rects)) {
+    
+    for (n_groups in 1:n_subgroups) {
+      
+      if (n_subgroups == 1) {
+        group_toEdit <- symbolGroup_edit
+      } else {
+        group_toEdit <- xml2::xml_find_all(symbolGroup_edit, "./g")[n_groups]
+      }
+      rects <- xml2::xml_find_all(group_toEdit, "./rect")
+      
+      # check
+      if (base::length(rects) != base::length(color_rects)) {
+        stop ("Anzahl Rechtecke entspricht nicht Anzahl Farben.")
+      }
+      
+      order_rects_x <- base::rank(base::as.numeric(xml2::xml_attr(rects, "x")))
+      order_rects_y <- base::rank(-base::as.numeric(xml2::xml_attr(rects, "y")))
+      if (alignment == "horizontal") {order_rects <- order_rects_x}
+      if (alignment == "vertical") {order_rects <- order_rects_y}
+      
+      for (n_rects in 1:base::length(rects)) {
+        
+        xml2::xml_set_attr(rects[order_rects[n_rects]], "fill", color_rects[n_rects])
+        ## TODO: if is.null
+        
+      }
+      
+    }
+    
+  }
+  
+  
+  # texts
+  if (!base::is.null(color_texts)) {
+    
+    for (n_groups in 1:n_subgroups) {
+      
+      if (n_subgroups == 1) {
+        group_toEdit <- symbolGroup_edit
+      } else {
+        group_toEdit <- xml2::xml_find_all(symbolGroup_edit, "./g")[n_groups]
+      }
+      
+      texts <- xml2::xml_find_all(group_toEdit, "./text")
+      
+      # check
+      if (base::length(texts) != base::length(color_texts)) {
+        stop ("Anzahl Lables entspricht nicht Anzahl Farben.")
+      }
+      
+      order_labels <- stackedBar_order_text(texts, 1:base::length(texts))
+      if (alignment == "horizontal") {order_labels <- order_labels$order_labels_x}
+      if (alignment == "vertical") {order_labels <- order_labels$order_labels_y}
+      
+      for (n_texts in 1:base::length(texts)) {
+        
+        xml2::xml_set_attr(texts[order_labels[n_texts]], "fill", color_texts[n_texts])
+        ## TODO: if is.null
+        
+      }
+      
+    }
+    
+  }
+  
 }
 
 #' Passt Balkendiagramm an
@@ -535,8 +836,7 @@ stackedBar <- function(svg, frame_name, group_name, scale_real, values, alignmen
   
 }
 
-
-
+### DIFFERENZBALKENDIAGRAMME ----
 
 ## -- Differenzbalken
 # Differenzbalken edit rects
@@ -795,21 +1095,350 @@ diffBar <- function(svg, frame_name, frame0_name, group_name, scale_real, values
   
 }
 
+### LINIEN- UND SYMBOLDIAGRAMME ----
+
+linesSymbols_in <- function (svg_in, group_name) {
+  
+  named_groups <- xml2::xml_find_all(svg_in, "/svg/g")
+  index_group <- base::which(xml2::xml_attr(named_groups, "id") == group_name)
+  if (base::length(index_group) != 1) {stop("Fehler: Gruppenname nicht gefunden bzw. nicht eindeutig.")}
+  lineGroup <- named_groups[index_group]
+  
+}
+
+linesSymbols_order_lines <- function (lines_inGroup, alignment) {
+  
+  lines_x1_values <- lines_y1_values <- lines_x2_values <- lines_y2_values <- NULL
+  
+  for (n_lines in 1:base::length(lines_inGroup)) {
+    
+    lines_x1_values <- c(lines_x1_values, base::as.numeric(xml2::xml_attr(lines_inGroup[n_lines], "x1")))
+    lines_y1_values <- c(lines_y1_values, base::as.numeric(xml2::xml_attr(lines_inGroup[n_lines], "y1")))
+    lines_x2_values <- c(lines_x2_values, base::as.numeric(xml2::xml_attr(lines_inGroup[n_lines], "x2")))
+    lines_y2_values <- c(lines_y2_values, base::as.numeric(xml2::xml_attr(lines_inGroup[n_lines], "y2")))
+    
+  }
+  
+  order_lines_x <- base::rank(lines_x1_values)  ## TODO: Schauen ob x1 und 2 notwendig sind fuer Reihenfolge-Check
+  order_lines_y <- base::rank(-lines_y1_values)
+  
+  if (alignment == "horizontal") {order_lines <- order_lines_x}
+  if (alignment == "vertical") {order_lines <- order_lines_y}
+  
+  
+  return(order_lines)
+  
+}
+
+## TODO: alignment
+linesSymbols_edit_lines <- function (lines_inGroup, order_lines, frame_info, value_set, alignment) {
+  
+  if (alignment=="horizontal")
+  {
+    for (n_lines in 1:base::length(lines_inGroup)) {
+      
+      line_toChange <- lines_inGroup[order_lines[n_lines]]
+      
+      xml2::xml_set_attr(line_toChange, "x1", frame_info$min_x + value_set[order_lines[n_lines]] * frame_info$scaling_x)
+      xml2::xml_set_attr(line_toChange, "x2", frame_info$min_x + value_set[order_lines[n_lines] + 1] * frame_info$scaling_x)
+      
+    }
+  }
+  if (alignment=="vertical")
+  {
+    for (n_lines in 1:base::length(lines_inGroup)) {
+      
+      line_toChange <- lines_inGroup[order_lines[n_lines]]
+      
+      xml2::xml_set_attr(line_toChange, "y1", frame_info$max_y - value_set[order_lines[n_lines]] * frame_info$scaling_y)
+      xml2::xml_set_attr(line_toChange, "y2", frame_info$max_y - value_set[order_lines[n_lines] + 1] * frame_info$scaling_y)
+      
+    }
+  }
+  
+}
 
 
 
+# pull information about triangles in group (x, y, order, ...)
+linesSymbols_info_triangles <- function (triangles_inGroup) {
+  
+  dat_triangles <- base::data.frame("Index" = 1:base::length(triangles_inGroup))
+  coln_x <- c("p1x", "p2x", "p3x")
+  coln_y <- c("p1y", "p2y", "p3y")
+  
+  for (n_triang in 1:base::length(triangles_inGroup)) {
+    
+    points <- base::unlist(base::strsplit(xml2::xml_attr(triangles_inGroup[n_triang], "points"), split = " "))
+    points <- base::as.numeric(base::unlist(base::strsplit(points, split = ",")))
+    dat_triangles$Index[n_triang] <- n_triang
+    dat_triangles$p1x[n_triang] <- points[1]
+    dat_triangles$p1y[n_triang] <- points[2]
+    dat_triangles$p2x[n_triang] <- points[3]
+    dat_triangles$p2y[n_triang] <- points[4]
+    dat_triangles$p3x[n_triang] <- points[5]
+    dat_triangles$p3y[n_triang] <- points[6]
+    dat_triangles$max_y[n_triang] <- base::max(dat_triangles[n_triang, coln_y])
+    dat_triangles$min_y[n_triang] <- base::min(dat_triangles[n_triang, coln_y])
+    dat_triangles$max_x[n_triang] <- base::max(dat_triangles[n_triang, coln_x])
+    dat_triangles$min_x[n_triang] <- base::min(dat_triangles[n_triang, coln_x])
+    dat_triangles$height[n_triang] <- dat_triangles$max_y[n_triang] - dat_triangles$min_y[n_triang]
+    dat_triangles$halfheight[n_triang] <- dat_triangles$height[n_triang] / 2
+    dat_triangles$point_upp[n_triang] <- base::which(dat_triangles[n_triang, coln_y] == dat_triangles$min_y[n_triang])
+    dat_triangles$point_ldown[n_triang] <-  base::which(dat_triangles[n_triang, coln_y] == 
+                                                          dat_triangles$max_y[n_triang] &
+                                                          dat_triangles[n_triang, coln_x] == 
+                                                          dat_triangles$min_x[n_triang])
+    dat_triangles$point_rdown[n_triang] <- base::which(dat_triangles[n_triang, coln_y] == 
+                                                         dat_triangles$max_y[n_triang] &
+                                                         dat_triangles[n_triang, coln_x] == 
+                                                         dat_triangles$max_x[n_triang])
+    # plausibility check
+    if (!base::all(c(1,2,3) %in% dat_triangles[n_triang, c("point_upp", "point_ldown", "point_rdown")])) {
+      
+      check_is <- dat_triangles[n_triang, c("point_upp", "point_ldown", "point_rdown")]
+      stop (base::paste0("Dreiecke: Bei einem Dreieck ist die Punktangabe in points nicht eindeutig einer Position zuordenbar.
+                         Soll: 1,2,3. Ist: ", check_is))
+    }
+    
+  }
+  
+  # center of triangles
+  dat_triangles$mean_x <- base::rowMeans(dat_triangles[ ,c("p1x", "p2x", "p3x")])
+  dat_triangles$mean_y <- base::rowMeans(dat_triangles[ ,c("p1y", "p2y", "p3y")])
+  
+  # order of triangles
+  dat_triangles$order_x <- base::rank(dat_triangles$min_x)
+  dat_triangles$order_y <- base::rank(dat_triangles$min_y)
+  
+  # return
+  return(dat_triangles)
+  
+}
+
+linesSymbols_info_xs <- function (symbols_inGroup, frame_info, value_set) {
+  
+  # symbols info
+  dat_symbols <- base::data.frame("Index" = 1:base::length(symbols_inGroup))
+  dat_symbols$x1 <- base::as.numeric(xml2::xml_attr(symbols_inGroup, "x1"))
+  dat_symbols$x2 <- base::as.numeric(xml2::xml_attr(symbols_inGroup, "x2"))
+  dat_symbols$y1 <- base::as.numeric(xml2::xml_attr(symbols_inGroup, "y1"))
+  dat_symbols$y2 <- base::as.numeric(xml2::xml_attr(symbols_inGroup, "y2"))
+  dat_symbols$min_x <- base::apply(dat_symbols[ , c("x1", "x2")], 1, FUN=base::min)
+  dat_symbols$min_y <- base::apply(dat_symbols[ , c("y1", "y2")], 1, FUN=base::min)
+  dat_symbols$max_x <- base::apply(dat_symbols[ , c("x1", "x2")], 1, FUN=base::max)
+  dat_symbols$max_y <- base::apply(dat_symbols[ , c("y1", "y2")], 1, FUN=base::max)
+  dat_symbols$halfheight <- (dat_symbols$max_y - dat_symbols$min_y) / 2
+  dat_symbols <- dplyr::arrange(dat_symbols, min_x)
+  dat_symbols$Index_arrange <- 1:base::nrow(dat_symbols)
+  dat_symbols$value <- base::rep(value_set, each = 2)
+  dat_symbols$value_scale_y <- frame_info$max_y - (dat_symbols$value * frame_info$scaling_y)
+  dat_symbols$value_scale_x <- frame_info$min_x + (dat_symbols$value * frame_info$scaling_x)
+  dat_symbols$y1_new <- base::ifelse (dat_symbols$y1 == dat_symbols$min_y, 
+                                      dat_symbols$value_scale_y - dat_symbols$halfheight,
+                                      dat_symbols$value_scale_y + dat_symbols$halfheight)
+  dat_symbols$y2_new <- base::ifelse (dat_symbols$y2 == dat_symbols$max_y, 
+                                      dat_symbols$value_scale_y + dat_symbols$halfheight,
+                                      dat_symbols$value_scale_y - dat_symbols$halfheight)
+  dat_symbols$x1_new <- base::ifelse (dat_symbols$x1 == dat_symbols$min_x, 
+                                      dat_symbols$value_scale_x - dat_symbols$halfheight,
+                                      dat_symbols$value_scale_x + dat_symbols$halfheight)
+  dat_symbols$x2_new <- base::ifelse (dat_symbols$x2 == dat_symbols$max_x, 
+                                      dat_symbols$value_scale_x + dat_symbols$halfheight,
+                                      dat_symbols$value_scale_x - dat_symbols$halfheight)
+  
+  return(dat_symbols)
+  
+}
+
+linesSymbols_edit_triangles <- function (svg_in, group_name, frame_info, value_set, alignment) {
+  
+  # available triangles in group
+  lineGroup <- linesSymbols_in(svg_in, group_name)
+  triangles_inGroup <- xml2::xml_find_all(lineGroup, "./polygon")
+  
+  # information about triangles
+  dat_triangles <- linesSymbols_info_triangles(triangles_inGroup)
+  
+  switch(alignment,
+         
+         horizontal = {
+           
+           for (n_triangles in 1:base::length(triangles_inGroup)) {
+             
+             # edit points
+             triangle_toEdit <- triangles_inGroup[dat_triangles$order_x[n_triangles]]
+             
+             # calulate new points
+             index_upp <- dat_triangles$point_upp[dat_triangles$order_x[n_triangles]]
+             index_ldown <- dat_triangles$point_ldown[dat_triangles$order_x[n_triangles]]
+             index_rdown <- dat_triangles$point_rdown[dat_triangles$order_x[n_triangles]]
+             
+             pmidy <- frame_info$max_y - ((value_set[dat_triangles$order_x[n_triangles]] * frame_info$scaling_y) +
+                                            dat_triangles$halfheight[dat_triangles$order_x[n_triangles]])
+             pminy <- frame_info$max_y - ((value_set[dat_triangles$order_x[n_triangles]] * frame_info$scaling_y) - 
+                                            dat_triangles$halfheight[dat_triangles$order_x[n_triangles]])
+             pmaxy <- frame_info$max_y - ((value_set[dat_triangles$order_x[n_triangles]] * frame_info$scaling_y) - 
+                                            dat_triangles$halfheight[dat_triangles$order_x[n_triangles]])
+             
+             pmidx <- dat_triangles[dat_triangles$order_x[n_triangles], base::paste0("p", index_upp, "x")]
+             pminx <- dat_triangles[dat_triangles$order_x[n_triangles], base::paste0("p", index_ldown, "x")]
+             pmaxx <- dat_triangles[dat_triangles$order_x[n_triangles], base::paste0("p", index_rdown, "x")]
+             
+             p_mid <- base::paste0(pmidx, ",", pmidy)
+             p_l <- base::paste0(pminx, ",", pminy)
+             p_r <- base::paste0(pmaxx, ",", pmaxy)
+             points_combined <- c(p_mid, p_l, p_r)
+             order_points <- c(index_upp, index_ldown, index_rdown)
+             points_new <- points_combined[base::sort(base::order(points_combined[order_points]))]
+             points_new <- base::paste(points_new, collapse = " ")
+             
+             xml2::xml_set_attr(triangle_toEdit, "points", points_new)
+             
+           }
+           
+         },
+         vertical = {
+           
+           # TODO
+           
+         })
+  
+  
+  
+  
+  
+}
+
+linesSymbols_edit_circles <- function (svg_in, group_name, frame_info, value_set, alignment) {
+  
+  # available circles in group
+  lineGroup <- linesSymbols_in(svg_in, group_name)
+  symbols_inGroup <- xml2::xml_find_all(lineGroup, "./circle")  ## umstellen bei triangles auf symbols
+  
+  # order of circles
+  symbols_order_x <- base::rank(base::as.numeric(xml2::xml_attr(symbols_inGroup, "cx")))
+  symbols_order_y <- base::rank(-base::as.numeric(xml2::xml_attr(symbols_inGroup, "cy")))
+  
+  base::switch (alignment,
+                
+                horizontal = {
+                  
+                  for (n_symbols in 1:base::length(symbols_inGroup)) {
+                    
+                    symbol_toEdit <- symbols_inGroup[symbols_order_x[n_symbols]]
+                    cy_new <- frame_info$max_y - value_set[symbols_order_x[n_symbols]] * frame_info$scaling_y
+                    xml2::xml_set_attr(symbol_toEdit, "cy", cy_new)
+                    
+                  }
+                  
+                },
+                
+                vertical = { # testen, ob so funktioniert, default einbauen
+                  
+                  for (n_symbols in 1:base::length(symbols_inGroup)) {
+                    
+                    symbol_toEdit <- symbols_inGroup[symbols_order_y[n_symbols]]
+                    cx_new <- frame_info$min_x + value_set[symbols_order_y[n_symbols]] * frame_info$scaling_x
+                    xml2::xml_set_attr(symbol_toEdit, "cx", cx_new)
+                    
+                  }
+                  
+                })
+  
+  
+}
+
+linesSymbols_edit_rects <- function (svg_in, group_name, frame_info, value_set, alignment) {
+  
+  lineGroup <- linesSymbols_in(svg_in, group_name)
+  symbols_inGroup <- xml2::xml_find_all(lineGroup, "./rect")  ## umstellen bei triangles auf symbols
+  
+  # order of rects
+  symbols_order_x <- base::rank(base::as.numeric(xml2::xml_attr(symbols_inGroup, "x")))
+  symbols_order_y <- base::rank(-base::as.numeric(xml2::xml_attr(symbols_inGroup, "y")))
+  
+  base::switch (alignment,
+                
+                horizontal = {
+                  
+                  for (n_symbols in 1:base::length(symbols_inGroup)) {
+                    
+                    symbol_toEdit <- symbols_inGroup[symbols_order_x[n_symbols]]
+                    height_half <- base::as.numeric(xml2::xml_attr(symbol_toEdit, "height")) / 2
+                    y_new <- frame_info$max_y - (value_set[symbols_order_x[n_symbols]] * frame_info$scaling_y + height_half)
+                    xml2::xml_set_attr(symbol_toEdit, "y", y_new)
+                    
+                  }
+                  
+                },
+                
+                vertical = {
+                  
+                  for (n_symbols in 1:base::length(symbols_inGroup)) {
+                    
+                    symbol_toEdit <- symbols_inGroup[symbols_order_y[n_symbols]]
+                    width_half <- base::as.numeric(xml2::xml_attr(symbol_toEdit, "width")) / 2
+                    x_new <- frame_info$min_x + value_set[symbols_order_y[n_symbols]] * frame_info$scaling_x + width_half
+                    xml2::xml_set_attr(symbol_toEdit, "x", x_new)
+                    
+                  }
+                  
+                })
+  
+}
+
+linesSymbols_edit_xs <- function (svg_in, group_name, frame_info, value_set, alignment) {
+  
+  lineGroup <- linesSymbols_in(svg_in, group_name)
+  symbols_inGroup <- xml2::xml_find_all(lineGroup, "./line")  ## umstellen bei triangles auf symbols
+  # filter lines and symbols
+  symbols_x1_values <- base::as.numeric(xml2::xml_attr(symbols_inGroup, "x1"))
+  index_symbols <- base::which(symbols_x1_values %in% symbols_x1_values[base::which(base::duplicated(symbols_x1_values))])
+  symbols_inGroup <- symbols_inGroup[index_symbols]
+  # symbols info
+  dat_symbols <- linesSymbols_info_xs(symbols_inGroup, frame_info, value_set)
+  
+  # edit symbols
+  base::switch(alignment,
+               
+               horizontal = {
+                 
+                 for (n_symbols in 1:base::length(symbols_inGroup)) {
+                   
+                   symbol_toEdit <- symbols_inGroup[dat_symbols$Index[n_symbols]]
+                   xml2::xml_set_attr(symbol_toEdit, "y1", dat_symbols$y1_new[dat_symbols$Index[n_symbols]])
+                   xml2::xml_set_attr(symbol_toEdit, "y2", dat_symbols$y2_new[dat_symbols$Index[n_symbols]])
+                   
+                 }
+                 
+               },
+               
+               vertical = {
+                 
+                 for (n_symbols in 1:base::length(symbols_inGroup)) {
+                   
+                   symbol_toEdit <- symbols_inGroup[dat_symbols$Index[n_symbols]]
+                   xml2::xml_set_attr(symbol_toEdit, "x1", dat_symbols$x1_new[dat_symbols$Index[n_symbols]])
+                   xml2::xml_set_attr(symbol_toEdit, "x2", dat_symbols$x2_new[dat_symbols$Index[n_symbols]])
+                   
+                 }
+                 
+               })
+  
+}
 
 ## -- Lines and Symbols
-#' Lines and Symbols: Funktion fuer Kreise
-#' 
-#' @description Passt die Kreise (und Lininen) in der SVG-Datei vorgefertigtes Symboldiagramm horizontal oder vertikal an. Vorbereitung: Kreissegmente und Linien sind im SVG zu gruppieren. Die Gruppe ist zu benennen.
-#' @param svg SVG als XML document
-#' @param group_name Name der Gruppe mit den Kreiselementen (und optional Verbindungslinien).
-#' @param frame_info Bereits eingelesene Informationen ueber den Grafiknamen (via frame_and_scaling eingelesen).
-#' @param value_set Dataframe bzw. Vektor mit den Werten, eine Zeile pro Gruppe
-#' @param alignment Ausrichtung der Symbole Entweder "horizontal" oder "vertical"
-#' @param zeroLine Falls es sich um ein Differenzdiagramm mit 0er Linie handelt: Name der 0er Linie. (Default: NULL)
-#' @return adaptiertes SVG als XML document
+# Lines and Symbols: Funktion fuer Kreise
+# 
+# @description Passt die Kreise (und Lininen) in der SVG-Datei vorgefertigtes Symboldiagramm horizontal oder vertikal an. Vorbereitung: Kreissegmente und Linien sind im SVG zu gruppieren. Die Gruppe ist zu benennen.
+# @param svg SVG als XML document
+# @param group_name Name der Gruppe mit den Kreiselementen (und optional Verbindungslinien).
+# @param frame_info Bereits eingelesene Informationen ueber den Grafiknamen (via frame_and_scaling eingelesen).
+# @param value_set Dataframe bzw. Vektor mit den Werten, eine Zeile pro Gruppe
+# @param alignment Ausrichtung der Symbole Entweder "horizontal" oder "vertical"
+# @param zeroLine Falls es sich um ein Differenzdiagramm mit 0er Linie handelt: Name der 0er Linie. (Default: NULL)
+# @return adaptiertes SVG als XML document
 linesSymbols_edit_circles <- function (svg, group_name, frame_info, value_set, alignment, zeroLine = NULL) {
   
   # available circles in group
@@ -899,16 +1528,16 @@ linesSymbols_edit_circles <- function (svg, group_name, frame_info, value_set, a
 }
 
 
-#' Lines and Symbols: Funktion fuer Rechtecke
-#' 
-#' @description Passt die Rechtecke (und Lininen) in der SVG-Datei vorgefertigtes Symboldiagramm horizontal oder vertikal an. Vorbereitung: Rechtecke und Linien sind im SVG zu gruppieren. Die Gruppe ist zu benennen.
-#' @param svg SVG als XML document
-#' @param group_name Name der Gruppe mit den Rechteckelementen (und optional Verbindungslinien).
-#' @param frame_info Bereits eingelesene Informationen ueber den Grafiknamen (via frame_and_scaling eingelesen).
-#' @param value_set Dataframe bzw. Vektor mit den Werten, eine Zeile pro Gruppe
-#' @param alignment Ausrichtung der Symbole Entweder "horizontal" oder "vertikal"
-#' @param zeroLine Falls es sich um ein Differenzdiagramm mit 0er Linie handelt: Name der 0er Linie. (Default: NULL)
-#' @return adaptiertes SVG als XML document
+# Lines and Symbols: Funktion fuer Rechtecke
+# 
+# @description Passt die Rechtecke (und Lininen) in der SVG-Datei vorgefertigtes Symboldiagramm horizontal oder vertikal an. Vorbereitung: Rechtecke und Linien sind im SVG zu gruppieren. Die Gruppe ist zu benennen.
+# @param svg SVG als XML document
+# @param group_name Name der Gruppe mit den Rechteckelementen (und optional Verbindungslinien).
+# @param frame_info Bereits eingelesene Informationen ueber den Grafiknamen (via frame_and_scaling eingelesen).
+# @param value_set Dataframe bzw. Vektor mit den Werten, eine Zeile pro Gruppe
+# @param alignment Ausrichtung der Symbole Entweder "horizontal" oder "vertikal"
+# @param zeroLine Falls es sich um ein Differenzdiagramm mit 0er Linie handelt: Name der 0er Linie. (Default: NULL)
+# @return adaptiertes SVG als XML document
 linesSymbols_edit_rects <- function (svg, group_name, frame_info, value_set, alignment, zeroLine = NULL) {
   
   # available rects in group
@@ -999,7 +1628,7 @@ linesSymbols_edit_rects <- function (svg, group_name, frame_info, value_set, ali
 
 
 
-#' Lines and Symbols: Hauptfunktion
+#' Passt Linien- und Symboldiagramme an
 #' 
 #' @description Passt die Symbole (und Lininen) in der SVG-Datei vorgefertigtes Symboldiagramm horizontal oder vertikal an. Vorbereitung: Kreissegmente und Linien sind im SVG zu gruppieren. Die Gruppe ist zu benennen.
 #' @param svg SVG als XML document
@@ -1088,332 +1717,8 @@ linesSymbols <- function (svg, frame_name, group_name, scale_real, values, align
   return(svg)
 }
 
+### TEXT ----
 
-
-
-## -- Hilfsfunktionen/Tools
-# wandelt strings in svg-style Strings um
-svg_TextToSvgFormat <- function(input_text) {
-  
-  input_text <- base::gsub("_", "_x5F_", input_text)
-  input_text <- base::gsub("\\(", "_x28_", input_text)
-  input_text <- base::gsub("\\)", "_x29_", input_text)
-  input_text <- base::gsub("\\,", "C", input_text)
-  input_text <- base::gsub("\\;", "_x3B_", input_text)
-  input_text <- base::gsub(" ", "__", input_text)
-  input_text <- base::gsub("--", "_x2013_", input_text)
-  input_text <- base::gsub("\\*", "_x2A_", input_text)
-  return(input_text)
-  
-}
-
-# elemente ausblenden
-svg_hideElement <- function(svg_in, element_name, element_type) {
-  
-  if (element_type == "text") {
-    
-    elements <- xml2::xml_find_all(svg_in, "./text")
-    
-    for (element_nr in 1:base::length(element_name)) {
-      
-      element_search <- svg_TextToSvgFormat(element_name[element_nr])
-      check1 <- base::length(base::which(xml2::xml_text(elements) == element_search)) == 0
-      check2 <- base::length(base::which(xml2::xml_attr(elements, "id") == element_search)) == 0
-      
-      
-      if (check1 & check2) {stop (base::paste0("Kein Textelement mit der Bezeichnung ", element_name[element_nr], " gefunden."))}
-      
-      if (base::length(base::which(xml2::xml_text(elements) == element_search)) == 0) {
-        xml2::xml_set_attr(elements[base::which(xml2::xml_attr(elements, "id") == 
-                                                  element_search)], "display", "none")
-      } else {
-        xml2::xml_set_attr(elements[base::which(xml2::xml_text(elements) == 
-                                                  element_search)], "display", "none")
-      }
-      
-    }
-    
-  } else {
-    
-    elements <- xml2::xml_find_all(svg_in, base::paste0("./", element_type))
-    
-    for (element_nr in 1:base::length(element_name)) {
-      
-      element_search <- svg_TextToSvgFormat(element_name[element_nr])
-      xml2::xml_set_attr(elements[base::which(xml2::xml_attr(elements, "id") == 
-                                                element_search)], "display", "none")
-      
-    }
-    
-  }
-  
-}
-
-# Passt Balkenelemente und Textelement hinsichtlich Ausrichtung an
-stackedBar_adjust <- function(svg_in, group_name, alignment, ref_rect = NULL, ref_text = NULL) {
-  
-  # check
-  if (!(alignment %in% c("horizontal", "vertical"))) {stop("alignment paramenter muss 'horizontal' oder 'vertical' sein.")}
-  
-  # check if subgroup has to be adjusted
-  subgroup <- ifelse (base::grepl("/", group_name) == FALSE, FALSE, TRUE)
-  # check if all subgroups should be adjusted
-  if (subgroup) {
-    subgroup_all <- ifelse (base::substr(group_name, base::nchar(group_name), base::nchar(group_name)) == "/", TRUE, FALSE)
-  }
-  
-  
-  subgroup_levels <- base::length(base::unlist(base::strsplit(group_name, split = "/")))  ## TODO
-  
-  group_name_main <- base::unlist(base::strsplit(group_name, split = "/"))[1]
-  group_name_sub <- base::unlist(base::strsplit(group_name, split = "/"))[2]
-  
-  symbolGroup <- stackedBar_in(svg_in, group_name_main)
-  symbolGroup_subs <- xml2::xml_find_all(symbolGroup, "g")
-  
-  if (subgroup_all) {
-    symbolGroup_edit <- symbolGroup
-  } else if (subgroup) {
-    symbolGroup_edit <- symbolGroup_subs[base::which(xml2::xml_attr(symbolGroup_subs, "id") == group_name_sub)]
-  } else {
-    symbolGroup_edit <- symbolGroup
-  }
-  
-  
-  n_subgroups <- base::length(xml2::xml_find_all(symbolGroup_edit, "g"))
-  if (n_subgroups == 0) {
-    n_subgroups <- 1
-  }
-  
-  
-  # edit rect position
-  if (!is.null(ref_rect)) {
-    
-    for (n_groups in 1:n_subgroups) {
-      
-      if (n_subgroups == 1) {
-        group_toEdit <- symbolGroup_edit
-      } else {
-        group_toEdit <- xml2::xml_find_all(symbolGroup_edit, "./g")[n_groups]
-      }
-      rects <- xml2::xml_find_all(group_toEdit, "./rect")
-      order_rects_x <- base::rank(base::as.numeric(xml2::xml_attr(rects, "x")))
-      order_rects_y <- base::rank(-base::as.numeric(xml2::xml_attr(rects, "y")))
-      if (alignment == "horizontal") {order_rects <- order_rects_x}
-      if (alignment == "vertical") {order_rects <- order_rects_y}
-      x_adjust <- xml2::xml_attr(rects[base::which(order_rects == ref_rect)], "x")
-      y_adjust <- xml2::xml_attr(rects[base::which(order_rects == ref_rect)], "y")
-      value_adjust <- base::ifelse (alignment == "horizontal", y_adjust, x_adjust)
-      variable_adjust <- base::ifelse (alignment == "horizontal", "y", "x")
-      
-      for (rect_nr in 1:base::length(rects)) {
-        
-        xml2::xml_set_attr(rects[order_rects[rect_nr]], variable_adjust, value_adjust)
-        
-      }
-      
-    }
-    
-  }
-  
-  ## edit text position
-  if (!is.null(ref_text)) {
-    
-    for (n_groups in 1:n_subgroups) {
-      
-      if (n_subgroups == 1) {
-        group_toEdit <- symbolGroup_edit
-      } else {
-        group_toEdit <- xml2::xml_find_all(symbolGroup_edit, "./g")[n_groups]
-      }
-      texts <- xml2::xml_find_all(group_toEdit, "./text")
-      
-      order_textOut <- stackedBar_order_text(texts, 1:base::length(texts))
-      order_labels_x <- order_textOut$order_labels_x
-      order_labels_y <- order_textOut$order_labels_y
-      if (alignment == "horizontal") {
-        order_labels <- order_labels_x
-      } else {
-        order_labels <- order_labels_y
-      }
-      
-      text_matrix <- xml2::xml_attr(texts[base::which(order_labels == ref_text)], "transform")
-      matrix_values_start <- stringr::str_locate(text_matrix, "matrix\\(")
-      matrix_values <- stringr::str_sub(text_matrix, (matrix_values_start[2] + 1), (base::nchar(text_matrix) - 1))
-      matrix_values <- base::as.numeric(base::unlist(base::strsplit(matrix_values, split = " ")))
-      
-      value_adjust <- base::ifelse(alignment == "horizontal", matrix_values[6], matrix_values[5])
-      variable_adjust <- base::ifelse(alignment == "horizontal", 6, 5)
-      
-      for (n_text in 1:base::length(texts)) {
-        
-        text_matrix <- xml2::xml_attr(texts[base::which(order_labels == n_text)], "transform")
-        matrix_values_start <- stringr::str_locate(text_matrix, "matrix\\(")
-        matrix_values <- stringr::str_sub(text_matrix, (matrix_values_start[2] + 1), (base::nchar(text_matrix) - 1))
-        matrix_values <- base::as.numeric(base::unlist(base::strsplit(matrix_values, split = " ")))
-        matrix_values[variable_adjust] <- value_adjust
-        text_pos_matrix <- base::paste0("matrix(", matrix_values[1], " ", matrix_values[2], " ", matrix_values[3], " ", 
-                                        matrix_values[4], " ", matrix_values[5], " ", matrix_values[6], ")")
-        xml2::xml_set_attr(texts[base::which(order_labels == n_text)], "transform", text_pos_matrix)
-        
-      }
-      
-    }
-    
-  }
-  
-}
-
-# Passt Farben von Balkenelementen und Textelementen eines stackedBars an
-stackedBar_setColor <- function(svg_in, group_name, alignment, color_rects = NULL, color_texts = NULL) {
-  
-  # check if subgroup has to be adjusted
-  subgroup <- ifelse (base::grepl("/", group_name) == FALSE, FALSE, TRUE)
-  # check if all subgroups should be adjusted
-  if (subgroup) {
-    subgroup_all <- ifelse (base::substr(group_name, base::nchar(group_name), base::nchar(group_name)) == "/", TRUE, FALSE)
-  }
-  
-  subgroup_levels <- base::length(base::unlist(base::strsplit(group_name, split = "/")))  ## TODO
-  
-  group_name_main <- base::unlist(base::strsplit(group_name, split = "/"))[1]
-  group_name_sub <- base::unlist(base::strsplit(group_name, split = "/"))[2]
-  
-  symbolGroup <- stackedBar_in(svg_in, group_name_main)
-  symbolGroup_subs <- xml2::xml_find_all(symbolGroup, "g")
-  
-  if (subgroup_all) {
-    symbolGroup_edit <- symbolGroup
-  } else if (subgroup) {
-    symbolGroup_edit <- symbolGroup_subs[base::which(xml2::xml_attr(symbolGroup_subs, "id") == group_name_sub)]
-  } else {
-    symbolGroup_edit <- symbolGroup
-  }
-  
-  
-  n_subgroups <- base::length(xml2::xml_find_all(symbolGroup_edit, "g"))
-  if (n_subgroups == 0) {
-    n_subgroups <- 1
-  }
-  
-  
-  # rects
-  if (!base::is.null(color_rects)) {
-    
-    for (n_groups in 1:n_subgroups) {
-      
-      if (n_subgroups == 1) {
-        group_toEdit <- symbolGroup_edit
-      } else {
-        group_toEdit <- xml2::xml_find_all(symbolGroup_edit, "./g")[n_groups]
-      }
-      rects <- xml2::xml_find_all(group_toEdit, "./rect")
-      
-      # check
-      if (base::length(rects) != base::length(color_rects)) {
-        stop ("Anzahl Rechtecke entspricht nicht Anzahl Farben.")
-      }
-      
-      order_rects_x <- base::rank(base::as.numeric(xml2::xml_attr(rects, "x")))
-      order_rects_y <- base::rank(-base::as.numeric(xml2::xml_attr(rects, "y")))
-      if (alignment == "horizontal") {order_rects <- order_rects_x}
-      if (alignment == "vertical") {order_rects <- order_rects_y}
-      
-      for (n_rects in 1:base::length(rects)) {
-        
-        xml2::xml_set_attr(rects[order_rects[n_rects]], "fill", color_rects[n_rects])
-        ## TODO: if is.null
-        
-      }
-      
-    }
-    
-  }
-  
-  
-  # texts
-  if (!base::is.null(color_texts)) {
-    
-    for (n_groups in 1:n_subgroups) {
-      
-      if (n_subgroups == 1) {
-        group_toEdit <- symbolGroup_edit
-      } else {
-        group_toEdit <- xml2::xml_find_all(symbolGroup_edit, "./g")[n_groups]
-      }
-      
-      texts <- xml2::xml_find_all(group_toEdit, "./text")
-      
-      # check
-      if (base::length(texts) != base::length(color_texts)) {
-        stop ("Anzahl Lables entspricht nicht Anzahl Farben.")
-      }
-      
-      order_labels <- stackedBar_order_text(texts, 1:base::length(texts))
-      if (alignment == "horizontal") {order_labels <- order_labels$order_labels_x}
-      if (alignment == "vertical") {order_labels <- order_labels$order_labels_y}
-      
-      for (n_texts in 1:base::length(texts)) {
-        
-        xml2::xml_set_attr(texts[order_labels[n_texts]], "fill", color_texts[n_texts])
-        ## TODO: if is.null
-        
-      }
-      
-    }
-    
-  }
-  
-}
-
-# Liest Farbcode von einem Element aus
-svg_getElementColor <- function(svg_in, element_name, element_type) {
-  
-  elements <- xml2::xml_find_all(svg_in, base::paste0("./", element_type))
-  color_out <- NULL
-  
-  for (element_nr in 1:base::length(element_name)) {
-    
-    
-    color_out <- c(color_out, xml2::xml_attr(elements[base::which(xml2::xml_attr(elements, "id") == 
-                                                                    element_name[element_nr])], "fill"))
-    
-  }
-  
-  return(color_out)
-  
-}
-
-# Ersetzt Farbcode eines Elements
-svg_setElementColor <- function(svg_in, element_name, element_type, color_new) {
-  
-  elements <- xml2::xml_find_all(svg_in, base::paste0("./", element_type))
-  
-  for (element_nr in 1:base::length(element_name)) {
-    
-    xml2::xml_set_attr(elements[base::which(xml2::xml_attr(elements, "id") == 
-                                              element_name[element_nr])], "fill", color_new[element_nr])
-    
-  }
-  
-}
-
-
-#' Ersetzt Text in Textelement
-#' 
-#' @description Passt ein in der SVG-Datei vorhandenes Textelement an. Kann entweder via Textinhalt selbst oder via Benennung des Textelements angewendet werden.
-#' @param svg SVG als XML document
-#' @param element_name Name des Textelements bzw. Textinhalt des Textelements, wenn dieses nicht gesondert beschriftet ist.
-#' @param text Text der eingetragen werden soll.
-#' @param alignment Textausrichtung. Moegliche Parameter: start, middle, end. (Default NULL)
-#' @param in_group In welcher Gruppe befindet sich das Textelement (Default NULL).
-#' @param hide_blank Soll Textelement versteckt werden, wenn es leer ist? (Default FALSE)
-#' @return adaptiertes SVG als XML document
-#' @export
-changeText <- function(svg, element_name, text, alignment = NULL, in_group = NULL, hide_blank = FALSE) {
-  return(svg_setElementText(svg = svg,element_name = element_name,text_new = text,alignment = alignment,inGroup = in_group, hide_blank = hide_blank))
-}
-  
 svg_setElementText <- function(svg, element_name, text_new, alignment = NULL, inGroup = NULL, hide_blank = FALSE) {
   
   if (!is.null(inGroup)) {
@@ -1464,10 +1769,17 @@ svg_setElementText <- function(svg, element_name, text_new, alignment = NULL, in
   return(svg)
 }
 
-
-
-
-
-
-
-
+#' Ersetzt Text in Textelement
+#' 
+#' @description Passt ein in der SVG-Datei vorhandenes Textelement an. Kann entweder via Textinhalt selbst oder via Benennung des Textelements angewendet werden.
+#' @param svg SVG als XML document
+#' @param element_name Name des Textelements bzw. Textinhalt des Textelements, wenn dieses nicht gesondert beschriftet ist.
+#' @param text Text der eingetragen werden soll.
+#' @param alignment Textausrichtung. Moegliche Parameter: start, middle, end. (Default NULL)
+#' @param in_group In welcher Gruppe befindet sich das Textelement (Default NULL).
+#' @param hide_blank Soll Textelement versteckt werden, wenn es leer ist? (Default FALSE)
+#' @return adaptiertes SVG als XML document
+#' @export
+changeText <- function(svg, element_name, text, alignment = NULL, in_group = NULL, hide_blank = FALSE) {
+  return(svg_setElementText(svg = svg,element_name = element_name,text_new = text,alignment = alignment,inGroup = in_group, hide_blank = hide_blank))
+}
