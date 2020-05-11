@@ -1106,45 +1106,72 @@ linesSymbols_in <- function (svg_in, group_name) {
   
 }
 
+linesSymbols_duplicate_lines <- function (lineGroup, alignment, number) {
+  
+  newline <- xml2::xml_find_first(lineGroup[[1]], "./line")
+  if (alignment=="horizontal") width <- abs(as.numeric(xml2::xml_attr(newline, "x2"))-as.numeric(xml2::xml_attr(newline, "x1")))
+  if (alignment=="vertical") width <- abs(as.numeric(xml2::xml_attr(newline, "y2"))-as.numeric(xml2::xml_attr(newline, "y1")))
+  for (ll in 2:number)
+  {
+    newline <- xml2::xml_add_sibling(.x = newline,.value=newline)
+    if (alignment=="horizontal")
+    {
+      xml2::xml_set_attr(newline,"x1",as.numeric(xml2::xml_attr(newline, "x1"))+width)
+      xml2::xml_set_attr(newline,"x2",as.numeric(xml2::xml_attr(newline, "x2"))+width)
+    }
+    if (alignment=="vertical")
+    {
+      xml2::xml_set_attr(newline,"y1",as.numeric(xml2::xml_attr(newline, "y1"))+width)
+      xml2::xml_set_attr(newline,"y2",as.numeric(xml2::xml_attr(newline, "y2"))+width)
+    }
+  }
+  lines_inGroup <- xml2::xml_find_all(lineGroup, "./line")
+  return(lines_inGroup)
+  
+}
+
 linesSymbols_order_lines <- function (lines_inGroup, alignment) {
   
   lines_x1_values <- lines_y1_values <- lines_x2_values <- lines_y2_values <- NULL
   
+  #Korrektur falsch gedrehter Linien (x2<x1 oder y2<y1)
   for (n_lines in 1:base::length(lines_inGroup)) {
-    
+    x1 <- as.numeric(xml2::xml_attr(lines_inGroup[n_lines], "x1"))
+    y1 <- as.numeric(xml2::xml_attr(lines_inGroup[n_lines], "y1"))
+    x2 <- as.numeric(xml2::xml_attr(lines_inGroup[n_lines], "x2"))
+    y2 <- as.numeric(xml2::xml_attr(lines_inGroup[n_lines], "y2"))
+    if (alignment=="horizontal" && x2<x1)
+    {
+      xml2::xml_set_attr(x = lines_inGroup[n_lines],attr = "x1",value=x2)
+      xml2::xml_set_attr(x = lines_inGroup[n_lines],attr = "x2",value=x1)
+    }
+    if (alignment=="vertical" && y2<y1)
+    {
+      xml2::xml_set_attr(x = lines_inGroup[n_lines],attr = "y1",value=y2)
+      xml2::xml_set_attr(x = lines_inGroup[n_lines],attr = "y2",value=y1)
+    }
+  }
+  
+  for (n_lines in 1:base::length(lines_inGroup)) {
     lines_x1_values <- c(lines_x1_values, base::as.numeric(xml2::xml_attr(lines_inGroup[n_lines], "x1")))
     lines_y1_values <- c(lines_y1_values, base::as.numeric(xml2::xml_attr(lines_inGroup[n_lines], "y1")))
     lines_x2_values <- c(lines_x2_values, base::as.numeric(xml2::xml_attr(lines_inGroup[n_lines], "x2")))
     lines_y2_values <- c(lines_y2_values, base::as.numeric(xml2::xml_attr(lines_inGroup[n_lines], "y2")))
-    
   }
   
-  order_lines_x <- base::rank(lines_x1_values)  ## TODO: Schauen ob x1 und 2 notwendig sind fuer Reihenfolge-Check
+  order_lines_x <- base::rank(lines_x1_values)
   order_lines_y <- base::rank(-lines_y1_values)
   
   if (alignment == "horizontal") {order_lines <- order_lines_x}
   if (alignment == "vertical") {order_lines <- order_lines_y}
   
-  
   return(order_lines)
   
 }
 
-## TODO: alignment
 linesSymbols_edit_lines <- function (lines_inGroup, order_lines, frame_info, value_set, alignment) {
   
   if (alignment=="horizontal")
-  {
-    for (n_lines in 1:base::length(lines_inGroup)) {
-      
-      line_toChange <- lines_inGroup[order_lines[n_lines]]
-      
-      xml2::xml_set_attr(line_toChange, "x1", frame_info$min_x + value_set[order_lines[n_lines]] * frame_info$scaling_x)
-      xml2::xml_set_attr(line_toChange, "x2", frame_info$min_x + value_set[order_lines[n_lines] + 1] * frame_info$scaling_x)
-      
-    }
-  }
-  if (alignment=="vertical")
   {
     for (n_lines in 1:base::length(lines_inGroup)) {
       
@@ -1155,10 +1182,19 @@ linesSymbols_edit_lines <- function (lines_inGroup, order_lines, frame_info, val
       
     }
   }
+  if (alignment=="vertical")
+  {
+    for (n_lines in 1:base::length(lines_inGroup)) {
+      
+      line_toChange <- lines_inGroup[order_lines[n_lines]]
+      
+      xml2::xml_set_attr(line_toChange, "x1", frame_info$min_x + value_set[order_lines[n_lines]] * frame_info$scaling_x)
+      xml2::xml_set_attr(line_toChange, "x2", frame_info$min_x + value_set[order_lines[n_lines] + 1] * frame_info$scaling_x)
+      
+    }
+  }
   
 }
-
-
 
 # pull information about triangles in group (x, y, order, ...)
 linesSymbols_info_triangles <- function (triangles_inGroup) {
@@ -1636,50 +1672,45 @@ linesSymbols_edit_rects <- function (svg, group_name, frame_info, value_set, ali
 #' @param group_name Name der Gruppe mit den zu bearbeitenden Symbolen (und optional Verbindungslinien).
 #' @param scale_real Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))
 #' @param values Dataframe bzw. Vektor mit den Werten, eine Zeile pro Gruppe
-#' @param alignment Ausrichtung der Symbole. Entweder "horizontal" oder "vertical" (Default: horizontal).
+#' @param alignment Ausrichtung der Symbole/Linien. Entweder "horizontal" oder "vertical" (Default: horizontal).
 #' @param has_lines Sind Linien vorhanden? (Default = TRUE)
 #' @param symbol_type Typ der Symbolgruppe, die angepasst werden soll. Derzeit moeglich: "circle" und "rect" (Default: NULL = nur Linie).
 #' @param zero_line Falls es sich um ein Differenzdiagramm mit 0er Linie handelt: Name der 0er Linie. (Default: NULL)
 #' @return adaptiertes SVG als XML document
+#' @details Die Linien- und Symbolelemente werden anhand ihrer x/y-Koordinaten von links nach rechts (aufsteigende x-Koordinate) bzw. oben nach unten (aufsteigende y-Koordinate) vorab sortiert und die Datenwerte entsprechend zugewiesen.
 #' @export
 linesSymbols <- function (svg, frame_name, group_name, scale_real, values, alignment = "horizontal", has_lines = TRUE, symbol_type = NULL, zero_line = NULL) {
   
   # input check
   if (!base::is.null(symbol_type)) {
-    if (!symbol_type %in% c("circle", "rect")) {stop ("Ungueltiger Symboltyp.")}
+    if (!symbol_type %in% c("circle", "rect")) { stop ("Ungueltiger Symboltyp (symbol_type): 'circle' und 'rect' erlaubt.") }
   }
+  if (!alignment %in% c("horizontal","vertical")) { stop ("Ungueltige Ausrichtungsart (alignment): 'horizontal' und 'vertical' erlaubt.") }
+  # if input-values == data.frame: transform first row to vector
+  if (is.data.frame(values))
+  {
+    if (nrow(values)>1) warning("Dataframe mit mehr als einer Zeile uebergeben: Verwende nur erste Zeile.")
+    values <- as.numeric(values[1,])
+  }
+  if (!is.numeric(values)) { stop ("Ungueltige Datenwerte (values): Nur numerische Werte erlaubt.") }
   
-  # get frame info and scaling
+  # get frame info, scaling and group
   frame_info <- frame_and_scaling(svg, frame_name, scale_real)
-  
-  # if input-values == vector: transform to data.frame to get 1 row
-  #if (base::is.null(base::nrow(values))) {values <- base::t(base::data.frame(values))}
-  
-  # get called group
-  linesSymbolsGroup <- stackedBar_in(svg, group_name)
-
-  # 1 - Lines
   lineGroup <- linesSymbols_in(svg, group_name)
-  lines_inGroup <- xml2::xml_find_all(lineGroup, "./line")
   
-  if (!is.null(symbol_type) && symbol_type == "x") {
-    
-    # filter lines and symbols (muss hier extra sein, da alles linien sind)
-    x1_values <- base::as.numeric(xml2::xml_attr(lines_inGroup, "x1"))
-    index_symbols <- base::which(x1_values %in% x1_values[base::which(base::duplicated(x1_values))])
-    # filter lines
-    lines_inGroup <- lines_inGroup[-index_symbols]
-    
-  }
-  
-  
-  if (has_lines && base::length(lines_inGroup) == 0) {
-    stop ("Keine Linienelemente in der Gruppe vorhanden.")
-  } 
+  # 1 - Lines
   if (has_lines)
   {
+    lines_inGroup <- xml2::xml_find_all(lineGroup, "./line")
+    if (length(lines_inGroup) == 0) { stop ("Keine Linienelemente in der Gruppe vorhanden.") }
+    if (length(lines_inGroup) == 1 && length(values)!=2)
+    {
+      warning("Nur ein Linienelement in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibender Breite/Hoehe.")
+      lines_inGroup <- linesSymbols_duplicate_lines(lineGroup, alignment, length(values)-1)
+    }
+    if (length(lines_inGroup) != length(values)-1) { stop(paste0("Falsche Anzahl Linienelemente in der Gruppe (",length(lines_inGroup)," vorhanden, ",(length(values)-1)," erwartet).")) }
     order_lines <- linesSymbols_order_lines(lines_inGroup, alignment)
-    linesSymbols_edit_lines (lines_inGroup, order_lines, frame_info, values, alignment)
+    linesSymbols_edit_lines(lines_inGroup, order_lines, frame_info, values, alignment)
   }
   
   # 2 - Symbols
