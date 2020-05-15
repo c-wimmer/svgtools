@@ -118,17 +118,43 @@ display_svg <- function(svg, width = NULL, height = NULL) {
 #' Schreibt SVG in Datei
 #' @param svg SVG als XML document
 #' @param file Dateiname (inkl. Pfad)
+#' @param remove_hidden Sollen versteckte Elemente (display="none") entfernt werden? (Default TRUE)
+#' @param flatten Sollen Gruppierungen entfernt werden (Default FALSE)
 #' @export
 #dep: xml2, magick
-write_svg <- function(svg, file) {
+write_svg <- function(svg, file, remove_hidden = TRUE, flatten = FALSE) {
+  
+  save_svg <- xml_new_root(xml2::xml_dtd("svg","-//W3C//DTD SVG 1.1//EN","http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"))
+  xml2::xml_add_child(save_svg,svg,copy=TRUE)
+  save_svg <- xml2::xml_root(save_svg)
+  
+  if (remove_hidden)
+  {
+    hidden <- xml2::xml_find_all(save_svg,"//*[@display='none']")
+    if (length(hidden)>0) for (ee in hidden) xml2::xml_remove(ee)
+  }
+  
+  if (flatten)
+  {
+    while (length(xml2::xml_find_all(save_svg,"//g"))>0)
+    {
+      group <- xml2::xml_find_first(save_svg,"//g")
+      children <- xml2::xml_find_all(group,"./*") 
+      if (length(children)>0)
+      {
+        for (child in children) xml2::xml_add_sibling(group,child)
+      }
+      xml2::xml_remove(group)
+    }
+  }
   
   # add default namespace
-  xml2::xml_set_attr(xml2::xml_find_all(svg, "/svg"), "xmlns", "http://www.w3.org/2000/svg")
+  xml2::xml_set_attr(xml2::xml_find_all(save_svg, "/svg"), "xmlns", "http://www.w3.org/2000/svg")
   
   # write svg
-  xml2::write_xml(x = svg, file = file)
+  xml2::write_xml(x = save_svg, file = file)
   #cat("svg gespeichert als: ", file, "\n")
-  
+  rm(save_svg)
 }
 
 ### ALLGEMEINE HILFSFUNKTIONEN ----
@@ -1610,6 +1636,7 @@ svg_setElementText <- function(svg, element_name, text_new, alignment = NULL, in
       }
       # hide if blank
       if (nchar(text_new)==0 && hide_blank) xml2::xml_set_attr(elements[which(xml2::xml_attr(elements, "id") == element_name[element_nr])], "display", "none")
+      if (nchar(text_new)>0 || !hide_blank) xml2::xml_set_attr(elements[which(xml2::xml_attr(elements, "id") == element_name[element_nr])], "display", NULL)
       
     } else {
       # edit text
@@ -1624,6 +1651,7 @@ svg_setElementText <- function(svg, element_name, text_new, alignment = NULL, in
       
       # hide if blank
       if (nchar(text_new)==0 && hide_blank) xml2::xml_set_attr(elements[which(xml2::xml_text(elements) == element_name[element_nr])], "display", "none")
+      if (nchar(text_new)>0 || !hide_blank) xml2::xml_set_attr(elements[which(xml2::xml_text(elements) == element_name[element_nr])], "display", NULL)
     }
     
   }
