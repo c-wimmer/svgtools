@@ -309,6 +309,25 @@ svg_setElementColor <- function(svg_in, element_name, element_type, color_new) {
   
 }
 
+# extract coordinates (points) from polygon into matrix
+get_polygon_coords <- function(polygon)
+{
+  points <- xml2::xml_attr(polygon,"points")
+  points <- strsplit(stringr::str_squish(points)," ",fixed = TRUE)[[1]]
+  points <- strsplit(points,",",fixed = TRUE)
+  points <- do.call(rbind,points)
+  points <- apply(points,2,as.numeric)
+  return(points)
+}
+
+# coerce coordinates from matrix and set them as point attribute
+set_polygon_coords <- function(polygon,coords)
+{
+  points <- apply(coords,1,paste,collapse=",")
+  points <- paste(points,collapse=" ")
+  xml2::xml_set_attr(polygon,"points",points)
+}
+
 ### BALKENDIAGRAMME ----
 
 # stackedBar_order_groups: Hilfsfunktion
@@ -1202,10 +1221,15 @@ linesSymbols_edit_lines <- function (lines_inGroup, order_lines, frame_info, val
     for (n_lines in 1:length(lines_inGroup)) {
       
       line_toChange <- lines_inGroup[order_lines[n_lines]]
-      
-      xml2::xml_set_attr(line_toChange, "y1", frame_info$max_y - (value_set[order_lines[n_lines]] - frame_info$scale_min) * frame_info$scaling_y)
-      xml2::xml_set_attr(line_toChange, "y2", frame_info$max_y - (value_set[order_lines[n_lines] + 1] - frame_info$scale_min) * frame_info$scaling_y)
-      
+      pos <- order_lines[n_lines]
+      if (any(is.na(value_set[pos:(pos+1)])))
+      {
+        xml2::xml_set_attr(line_toChange, "display", "none")
+      } else  {
+        xml2::xml_set_attr(line_toChange, "display", "NULL")
+        xml2::xml_set_attr(line_toChange, "y1", frame_info$max_y - (value_set[pos] - frame_info$scale_min) * frame_info$scaling_y)
+        xml2::xml_set_attr(line_toChange, "y2", frame_info$max_y - (value_set[pos + 1] - frame_info$scale_min) * frame_info$scaling_y)
+      }
     }
   }
   if (alignment=="horizontal")
@@ -1213,10 +1237,15 @@ linesSymbols_edit_lines <- function (lines_inGroup, order_lines, frame_info, val
     for (n_lines in 1:length(lines_inGroup)) {
       
       line_toChange <- lines_inGroup[order_lines[n_lines]]
-      
-      xml2::xml_set_attr(line_toChange, "x1", frame_info$min_x + (value_set[order_lines[n_lines]] - frame_info$scale_min) * frame_info$scaling_x)
-      xml2::xml_set_attr(line_toChange, "x2", frame_info$min_x + (value_set[order_lines[n_lines] + 1] - frame_info$scale_min) * frame_info$scaling_x)
-      
+      pos <- order_lines[n_lines]
+      if (any(is.na(value_set[pos:(pos+1)])))
+      {
+        xml2::xml_set_attr(line_toChange, "display", "none")
+      } else  {
+        xml2::xml_set_attr(line_toChange, "display", "NULL")
+        xml2::xml_set_attr(line_toChange, "x1", frame_info$min_x + (value_set[pos] - frame_info$scale_min) * frame_info$scaling_x)
+        xml2::xml_set_attr(line_toChange, "x2", frame_info$min_x + (value_set[pos + 1] - frame_info$scale_min) * frame_info$scaling_x)
+      }
     }
   }
   
@@ -1232,18 +1261,17 @@ linesSymbols_info_polygons <- function (polygons_inGroup) {
     dat_polygons <- plyr::rbind.fill(dat_polygons,data.frame(Index = pp))
     min_x <- min_y <- Inf
     max_x <- max_y <- -Inf
-    points_str <- str_squish(xml2::xml_attr(polygons_inGroup[pp], "points"))
-    points <- strsplit(points_str,split=" ")[[1]]
-    dat_polygons[pp,]$num_points <- length(points)
-    for (qq in 1:length(points))
+    points <- get_polygon_coords(polygons_inGroup[pp])
+    dat_polygons[pp,]$num_points <- nrow(points)
+    for (qq in 1:nrow(points))
     {
       if (!(paste0("p",qq,"_x") %in% colnames(dat_polygons)))
       {
         dat_polygons[,paste0("p",qq,"_x")] <- as.numeric(NA)
         dat_polygons[,paste0("p",qq,"_y")] <- as.numeric(NA)
       }
-      x <- as.numeric(strsplit(points[qq],",")[[1]][1])
-      y <- as.numeric(strsplit(points[qq],",")[[1]][2])
+      x <- points[qq,1]
+      y <- points[qq,2]
       dat_polygons[pp,paste0("p",qq,"_x")] <- x
       dat_polygons[pp,paste0("p",qq,"_y")] <- y
       if (min_x > x) min_x <- x
@@ -1278,30 +1306,88 @@ linesSymbols_edit_polygons <- function (svg_in, group, frame_info, value_set, al
   
   # available polygons in group
   polygons_inGroup <- xml2::xml_find_all(group, "./polygon")
-  if (length(polygons_inGroup)!=length(value_set)) stop(paste0("Falsche Anzahl Polygonelemente in der Gruppe (",length(polygons_inGroup)," vorhanden, ",length(value_set)," erwartet)."))
+  if (length(polygons_inGroup)!=length(value_set))
+  {
+    if (length(polygons_inGroup)>=1 && scatter)
+    {
+      while (length(polygons_inGroup)!=length(value_set))
+      {
+        if (length(polygons_inGroup)<length(value_set)) { element <- xml2::xml_find_first(group, "./polygon"); xml2::xml_add_sibling(element,element) }
+        if (length(polygons_inGroup)>length(value_set)) { element <- xml2::xml_find_first(group, "./polygon"); xml2::xml_remove(element) }
+        polygons_inGroup <- xml2::xml_find_all(group, "./polygon")
+      }
+    } else if (length(polygons_inGroup)==2)
+    {
+      warning("Nur zwei Polygone in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibender Abstaende (und gleicher Form).")
+      points1 <- get_polygon_coords(polygons_inGroup[1])
+      points2 <- get_polygon_coords(polygons_inGroup[2])
+      diff_x <- abs(points1[1,1]-points2[1,1])
+      diff_y <- abs(points1[1,2]-points2[1,2])
+      firstpolygon <- xml2::xml_find_first(group, "./polygon")[[1]]
+      for (ee in 3:length(value_set))
+      {
+        newpolygon <- xml2::xml_add_sibling(.x = firstpolygon,.value=firstpolygon)
+        if (alignment == "vertical")
+        {
+          if (points1[1,1]<=points2[1,1]) newpoints <- points1
+          if (points1[1,1]> points2[1,1]) newpoints <- points2
+          newpoints[,1] <- (newpoints[,1]+(ee-1)*diff_x)
+        }
+        if (alignment == "horizontal")
+        {
+          if (points1[1,2]<=points2[1,2]) newpoints <- points1
+          if (points1[1,2]> points2[1,2]) newpoints <- points2
+          newpoints[,2] <- (newpoints[,2]+(ee-1)*diff_y)
+        }
+        set_polygon_coords(newpolygon,newpoints)
+      }
+    } else if (length(polygons_inGroup)==1 && length(xml2::xml_find_all(group, "./line"))>0)
+    {
+      warning("Nur ein Polygon in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibender Abstaende von der Linie her.")
+      line <- xml2::xml_find_first(group, "./line")
+      height <- abs(as.numeric(xml2::xml_attr(line, "y1")) - as.numeric(xml2::xml_attr(line, "y2")))
+      width <- abs(as.numeric(xml2::xml_attr(line, "x1")) - as.numeric(xml2::xml_attr(line, "x2")))
+      firstpolygon <- xml2::xml_find_first(group, "./polygon")[[1]]
+      points <- get_polygon_coords(firstpolygon)
+      for (ee in 2:length(value_set))
+      {
+        newpolygon <- xml2::xml_add_sibling(.x = firstpolygon,.value=firstpolygon)
+        newpoints <- points
+        if (alignment == "vertical") newpoints[,1] <- (newpoints[,1]+(ee-1)*width)
+        if (alignment == "horizontal") newpoints[,2] <- (newpoints[,2]+(ee-1)*height)
+        set_polygon_coords(newpolygon,newpoints)
+      }
+    } else stop(paste0("Falsche Anzahl Polygonelemente in der Gruppe (",length(polygons_inGroup)," vorhanden, ",length(value_set)," erwartet)."))
+    polygons_inGroup <- xml2::xml_find_all(group, "./polygon")
+  }
   
   # information about polygons
   dat_polygons <- linesSymbols_info_polygons(polygons_inGroup)
+  if (scatter)
+  {
+    dat_polygons$order_x <- 1:nrow(dat_polygons)
+    dat_polygons$order_y <- 1:nrow(dat_polygons)
+  }
   
   switch(alignment,
          
          vertical = {
            
            for (pp in 1:length(polygons_inGroup)) {
-             
              dat_polygon <- dat_polygons[pp,,drop=FALSE]
-             location_y <- (frame_info$max_y - (value_set[dat_polygon$order_x] - frame_info$scale_min) * frame_info$scaling_y)
-             diff_y <- (dat_polygon$gravity_y - location_y)
-             points_new <- character()
-             for (qq in 1:dat_polygon$num_points)
+             polygon_toChange <- polygons_inGroup[pp]
+             value <- value_set[dat_polygon$order_x]
+             if (is.na(value))
              {
-               old_x <- dat_polygon[,paste0("p",qq,"_x")]
-               new_y <- (dat_polygon[,paste0("p",qq,"_y")] - diff_y)
-               points_new <- c(points_new,paste0(old_x,",",new_y))
+               xml2::xml_set_attr(polygon_toChange,"display","none")
+             } else {
+               location_y <- (frame_info$max_y - (value - frame_info$scale_min) * frame_info$scaling_y)
+               diff_y <- (dat_polygon$gravity_y - location_y)
+               points_new <- get_polygon_coords(polygon_toChange)
+               points_new[,2] <- (points_new[,2] - diff_y)
+               xml2::xml_set_attr(polygon_toChange,"display",NULL)
+               set_polygon_coords(polygon_toChange, points_new)
              }
-             points_new <- paste(points_new, collapse = " ")
-             xml2::xml_set_attr(polygons_inGroup[pp], "points", points_new)
-
            }
            
          },
@@ -1309,20 +1395,20 @@ linesSymbols_edit_polygons <- function (svg_in, group, frame_info, value_set, al
          horizontal = {
            
            for (pp in 1:length(polygons_inGroup)) {
-             
              dat_polygon <- dat_polygons[pp,,drop=FALSE]
-             location_x <- (frame_info$min_x + (value_set[dat_polygon$order_y] - frame_info$scale_min) * frame_info$scaling_x)
-             diff_x <- (dat_polygon$gravity_x - location_x)
-             points_new <- character()
-             for (qq in 1:dat_polygon$num_points)
+             polygon_toChange <- polygons_inGroup[pp]
+             value <- value_set[dat_polygon$order_y]
+             if (is.na(value))
              {
-               old_y <- dat_polygon[,paste0("p",qq,"_y")]
-               new_x <- (dat_polygon[,paste0("p",qq,"_x")] - diff_x)
-               points_new <- c(points_new,paste0(new_x,",",old_y))
+               xml2::xml_set_attr(polygon_toChange,"display","none")
+             } else {
+               location_x <- (frame_info$min_x + (value - frame_info$scale_min) * frame_info$scaling_x)
+               diff_x <- (dat_polygon$gravity_x - location_x)
+               points_new <- get_polygon_coords(polygon_toChange)
+               points_new[,1] <- (points_new[,1] - diff_x)
+               xml2::xml_set_attr(polygon_toChange,"display",NULL)
+               set_polygon_coords(polygon_toChange, points_new)
              }
-             points_new <- paste(points_new, collapse = " ")
-             xml2::xml_set_attr(polygons_inGroup[pp], "points", points_new)
-             
            }
            
          })
@@ -1394,27 +1480,119 @@ linesSymbols_edit_linegroups <- function (svg_in, group, frame_info, value_set, 
   
   #available groups
   linegroups_inGroup <- xml2::xml_find_all(group, "./g")
-  if (length(linegroups_inGroup)!=length(value_set)) stop(paste0("Falsche Anzahl Gruppen mit Linienelementen in der Gruppe (",length(linegroups_inGroup)," vorhanden, ",length(value_set)," erwartet)."))
+  if (length(linegroups_inGroup)!=length(value_set))
+  {
+    if (length(linegroups_inGroup)>=1 && scatter)
+    {
+      while (length(linegroups_inGroup)!=length(value_set))
+      {
+        if (length(linegroups_inGroup)<length(value_set)) { element <- xml2::xml_find_first(group, "./g"); xml2::xml_add_sibling(element,element) }
+        if (length(linegroups_inGroup)>length(value_set)) { element <- xml2::xml_find_first(group, "./g"); xml2::xml_remove(element) }
+        linegroups_inGroup <- xml2::xml_find_all(group, "./g")
+      }
+    } else if (length(linegroups_inGroup)==2)
+    {
+      warning("Nur zwei Gruppen mit Linienelementen in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibender Abstaende (und gleicher Form).")
+      line1 <- xml2::xml_find_first(linegroups_inGroup[1],"./line")[[1]]
+      line2 <- xml2::xml_find_first(linegroups_inGroup[2],"./line")[[1]]
+      height <- abs(as.numeric(xml2::xml_attr(line1, "y1")) - as.numeric(xml2::xml_attr(line2, "y1")))
+      width <- abs(as.numeric(xml2::xml_attr(line1, "x1")) - as.numeric(xml2::xml_attr(line2, "x1")))
+      if (alignment=="vertical")
+      {
+        if (as.numeric(xml2::xml_attr(line1, "x1"))<=as.numeric(xml2::xml_attr(line2, "x1"))) firstgroup <- linegroups_inGroup[1][[1]]
+        if (as.numeric(xml2::xml_attr(line1, "x1"))> as.numeric(xml2::xml_attr(line2, "x1"))) firstgroup <- linegroups_inGroup[2][[1]]
+      }
+      if (alignment=="horizontal")
+      {
+        if (as.numeric(xml2::xml_attr(line1, "y1"))<=as.numeric(xml2::xml_attr(line2, "y1"))) firstgroup <- linegroups_inGroup[1][[1]]
+        if (as.numeric(xml2::xml_attr(line1, "y1"))> as.numeric(xml2::xml_attr(line2, "y1"))) firstgroup <- linegroups_inGroup[2][[1]]
+      }
+      for (ee in 3:length(value_set))
+      {
+        newgroup <- xml2::xml_add_sibling(.x = firstgroup,.value=firstgroup)
+        lines <- xml2::xml_find_all(newgroup, "./line")
+        for (ll in 1:length(lines))
+        {
+          if (alignment=="vertical")
+          {
+            newx1 <- as.numeric(xml2::xml_attr(lines[ll],"x1")) + (ee-1)*width
+            newx2 <- as.numeric(xml2::xml_attr(lines[ll],"x2")) + (ee-1)*width
+            xml2::xml_set_attr(lines[ll],"x1",newx1)
+            xml2::xml_set_attr(lines[ll],"x2",newx2)
+          }
+          if (alignment=="horizontal")
+          {
+            newy1 <- as.numeric(xml2::xml_attr(lines[ll],"y1")) + (ee-1)*height
+            newy2 <- as.numeric(xml2::xml_attr(lines[ll],"y2")) + (ee-1)*height
+            xml2::xml_set_attr(lines[ll],"y1",newy1)
+            xml2::xml_set_attr(lines[ll],"y2",newy2)
+          }
+        }
+      }
+    } else if (length(linegroups_inGroup)==1 && length(xml2::xml_find_all(group, "./line"))>0)
+    {
+      warning("Nur eine Gruppe mit Linienelementen in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibender Abstaende von der Linie her.")
+      line <- xml2::xml_find_first(group, "./line")
+      height <- abs(as.numeric(xml2::xml_attr(line, "y1")) - as.numeric(xml2::xml_attr(line, "y2")))
+      width <- abs(as.numeric(xml2::xml_attr(line, "x1")) - as.numeric(xml2::xml_attr(line, "x2")))
+      firstgroup <- xml2::xml_find_first(group, "./g")[[1]]
+      for (ee in 2:length(value_set))
+      {
+        newgroup <- xml2::xml_add_sibling(.x = firstgroup,.value=firstgroup)
+        lines <- xml2::xml_find_all(newgroup, "./line")
+        for (ll in 1:length(lines))
+        {
+          if (alignment=="vertical")
+          {
+            newx1 <- as.numeric(xml2::xml_attr(lines[ll],"x1")) + (ee-1)*width
+            newx2 <- as.numeric(xml2::xml_attr(lines[ll],"x2")) + (ee-1)*width
+            xml2::xml_set_attr(lines[ll],"x1",newx1)
+            xml2::xml_set_attr(lines[ll],"x2",newx2)
+          }
+          if (alignment=="horizontal")
+          {
+            newy1 <- as.numeric(xml2::xml_attr(lines[ll],"y1")) + (ee-1)*height
+            newy2 <- as.numeric(xml2::xml_attr(lines[ll],"y2")) + (ee-1)*height
+            xml2::xml_set_attr(lines[ll],"y1",newy1)
+            xml2::xml_set_attr(lines[ll],"y2",newy2)
+          }
+        }
+      }
+    } else stop(paste0("Falsche Anzahl Gruppen mit Linienelementen in der Gruppe (",length(linegroups_inGroup)," vorhanden, ",length(value_set)," erwartet)."))
+    linegroups_inGroup <- xml2::xml_find_all(group, "./g")
+  }
   
   # symbols info
   dat_linegroups <- linesSymbols_info_linegroups(linegroups_inGroup)
+  if (scatter)
+  {
+    dat_linegroups$order_x <- 1:nrow(dat_linegroups)
+    dat_linegroups$order_y <- 1:nrow(dat_linegroups)
+  }
   
-  # edit symbols
   switch(alignment,
                
                vertical = {
                  
                  for (pp in 1:length(linegroups_inGroup)) {
                    dat_linegroup <- dat_linegroups[pp,,drop=FALSE]
-                   location_y <- (frame_info$max_y - (value_set[dat_linegroup$order_x] - frame_info$scale_min) * frame_info$scaling_y)
-                   diff_y <- (dat_linegroup$gravity_y - location_y)
-                   lines <- xml2::xml_find_all(linegroups_inGroup[pp], "./line")
-                   for (qq in 1:dat_linegroup$num_lines)
+                   value <- value_set[dat_linegroup$order_x]
+                   if (is.na(value))
                    {
-                     new_y1 <- (dat_linegroup[,paste0("l",qq,"_y1")] - diff_y)
-                     new_y2 <- (dat_linegroup[,paste0("l",qq,"_y2")] - diff_y)
-                     xml2::xml_set_attr(lines[qq], "y1", new_y1)
-                     xml2::xml_set_attr(lines[qq], "y2", new_y2)
+                     lines <- xml2::xml_find_all(linegroups_inGroup[pp], "./line")
+                     for (qq in 1:dat_linegroup$num_lines) xml2::xml_set_attr(lines[qq], "display", "none")
+                   } else {
+                     location_y <- (frame_info$max_y - (value - frame_info$scale_min) * frame_info$scaling_y)
+                     diff_y <- (dat_linegroup$gravity_y - location_y)
+                     lines <- xml2::xml_find_all(linegroups_inGroup[pp], "./line")
+                     for (qq in 1:dat_linegroup$num_lines)
+                     {
+                       new_y1 <- (dat_linegroup[,paste0("l",qq,"_y1")] - diff_y)
+                       new_y2 <- (dat_linegroup[,paste0("l",qq,"_y2")] - diff_y)
+                       xml2::xml_set_attr(lines[qq], "display", NULL)
+                       xml2::xml_set_attr(lines[qq], "y1", new_y1)
+                       xml2::xml_set_attr(lines[qq], "y2", new_y2)
+                     }
                    }
                  }
                  
@@ -1424,15 +1602,23 @@ linesSymbols_edit_linegroups <- function (svg_in, group, frame_info, value_set, 
                  
                  for (pp in 1:length(linegroups_inGroup)) {
                    dat_linegroup <- dat_linegroups[pp,,drop=FALSE]
-                   location_x <- (frame_info$min_x + (value_set[dat_linegroup$order_y] - frame_info$scale_min) * frame_info$scaling_x)
-                   diff_x <- (dat_linegroup$gravity_x - location_x)
-                   lines <- xml2::xml_find_all(linegroups_inGroup[pp], "./line")
-                   for (qq in 1:dat_linegroup$num_lines)
+                   value <- value_set[dat_linegroup$order_y]
+                   if (is.na(value))
                    {
-                     new_x1 <- (dat_linegroup[,paste0("l",qq,"_x1")] - diff_x)
-                     new_x2 <- (dat_linegroup[,paste0("l",qq,"_x2")] - diff_x)
-                     xml2::xml_set_attr(lines[qq], "x1", new_x1)
-                     xml2::xml_set_attr(lines[qq], "x2", new_x2)
+                     lines <- xml2::xml_find_all(linegroups_inGroup[pp], "./line")
+                     for (qq in 1:dat_linegroup$num_lines) xml2::xml_set_attr(lines[qq], "display", "none")
+                   } else {
+                     location_x <- (frame_info$min_x + (value - frame_info$scale_min) * frame_info$scaling_x)
+                     diff_x <- (dat_linegroup$gravity_x - location_x)
+                     lines <- xml2::xml_find_all(linegroups_inGroup[pp], "./line")
+                     for (qq in 1:dat_linegroup$num_lines)
+                     {
+                       new_x1 <- (dat_linegroup[,paste0("l",qq,"_x1")] - diff_x)
+                       new_x2 <- (dat_linegroup[,paste0("l",qq,"_x2")] - diff_x)
+                       xml2::xml_set_attr(lines[qq], "display", NULL)
+                       xml2::xml_set_attr(lines[qq], "x1", new_x1)
+                       xml2::xml_set_attr(lines[qq], "x2", new_x2)
+                     }
                    }
                  }
                  
@@ -1444,11 +1630,58 @@ linesSymbols_edit_circles <- function (svg, group, frame_info, value_set, alignm
   
   # available circles in group
   symbols_inGroup <- xml2::xml_find_all(group, "./circle")
-  if (length(symbols_inGroup)!=length(value_set)) stop(paste0("Falsche Anzahl Kreiselemente in der Gruppe (",length(symbols_inGroup)," vorhanden, ",length(value_set)," erwartet)."))
+  if (length(symbols_inGroup)!=length(value_set))
+  {
+    if (length(symbols_inGroup)>=1 && scatter)
+    {
+      while (length(symbols_inGroup)!=length(value_set))
+      {
+        if (length(symbols_inGroup)<length(value_set)) { element <- xml2::xml_find_first(group, "./circle"); xml2::xml_add_sibling(element,element) }
+        if (length(symbols_inGroup)>length(value_set)) { element <- xml2::xml_find_first(group, "./circle"); xml2::xml_remove(element) }
+        symbols_inGroup <- xml2::xml_find_all(group, "./circle")
+      }
+    } else if (length(symbols_inGroup)==2)
+    {
+      warning("Nur zwei Kreise in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibender Abstaende.")
+      x <- as.numeric(xml2::xml_attr(symbols_inGroup, "cx"))
+      y <- as.numeric(xml2::xml_attr(symbols_inGroup, "cy"))
+      firstcircle <- xml2::xml_find_first(group, "./circle")[[1]]
+      for (ee in 3:length(value_set))
+      {
+        newcircle <- xml2::xml_add_sibling(.x = firstcircle,.value=firstcircle)
+        if (alignment == "vertical") xml2::xml_set_attr(newcircle,"cx",min(x)+(ee-1)*abs(x[1]-x[2]))
+        if (alignment == "horizontal") xml2::xml_set_attr(newcircle,"cy",min(y)+(ee-1)*abs(y[1]-y[2]))
+      }
+    } else if (length(symbols_inGroup)==1 && length(xml2::xml_find_all(group, "./line"))>0)
+    {
+      warning("Nur ein Kreis in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibender Abstaende von der Linie her.")
+      x <- as.numeric(xml2::xml_attr(symbols_inGroup, "cx"))
+      y <- as.numeric(xml2::xml_attr(symbols_inGroup, "cy"))
+      line <- xml2::xml_find_first(group, "./line")
+      height <- abs(as.numeric(xml2::xml_attr(line, "y1")) - as.numeric(xml2::xml_attr(line, "y2")))
+      width <- abs(as.numeric(xml2::xml_attr(line, "x1")) - as.numeric(xml2::xml_attr(line, "x2")))
+      firstcircle <- xml2::xml_find_first(group, "./circle")[[1]]
+      for (ee in 2:length(value_set))
+      {
+        newcircle <- xml2::xml_add_sibling(.x = firstcircle,.value=firstcircle)
+        if (alignment == "vertical") xml2::xml_set_attr(newcircle,"cx",x+(ee-1)*width)
+        if (alignment == "horizontal") xml2::xml_set_attr(newcircle,"cy",y+(ee-1)*height)
+      }
+    } else stop(paste0("Falsche Anzahl Kreiselemente in der Gruppe (",length(symbols_inGroup)," vorhanden, ",length(value_set)," erwartet)."))
+    symbols_inGroup <- xml2::xml_find_all(group, "./circle")
+  }
   
   # order of circles
-  symbols_order_x <- order(as.numeric(xml2::xml_attr(symbols_inGroup, "cx")))
-  symbols_order_y <- order(as.numeric(xml2::xml_attr(symbols_inGroup, "cy")))
+  if (!scatter)
+  {
+    symbols_order_x <- order(as.numeric(xml2::xml_attr(symbols_inGroup, "cx")))
+    symbols_order_y <- order(as.numeric(xml2::xml_attr(symbols_inGroup, "cy")))
+  }
+  if (scatter)
+  {
+    symbols_order_x <- 1:length(symbols_inGroup)
+    symbols_order_y <- 1:length(symbols_inGroup)
+  }
   
   switch (alignment,
                 
@@ -1456,8 +1689,14 @@ linesSymbols_edit_circles <- function (svg, group, frame_info, value_set, alignm
                   
                   for (n_symbols in 1:length(symbols_inGroup)) {
                     symbol_toEdit <- symbols_inGroup[symbols_order_x[n_symbols]]
-                    cy_new <- frame_info$max_y - (value_set[n_symbols] - frame_info$scale_min) * frame_info$scaling_y 
-                    xml2::xml_set_attr(symbol_toEdit, "cy", cy_new)
+                    if (is.na(value_set[n_symbols]))
+                    {
+                      xml2::xml_set_attr(symbol_toEdit, "display", "none")
+                    } else {
+                      cy_new <- frame_info$max_y - (value_set[n_symbols] - frame_info$scale_min) * frame_info$scaling_y 
+                      xml2::xml_set_attr(symbol_toEdit, "display", NULL)
+                      xml2::xml_set_attr(symbol_toEdit, "cy", cy_new)
+                    }
                   }
                   
                 },
@@ -1466,8 +1705,14 @@ linesSymbols_edit_circles <- function (svg, group, frame_info, value_set, alignm
                   
                   for (n_symbols in 1:length(symbols_inGroup)) {
                     symbol_toEdit <- symbols_inGroup[symbols_order_y[n_symbols]]
-                    cx_new <- frame_info$min_x + (value_set[n_symbols] - frame_info$scale_min) * frame_info$scaling_x 
-                    xml2::xml_set_attr(symbol_toEdit, "cx", cx_new)
+                    if (is.na(value_set[n_symbols]))
+                    {
+                      xml2::xml_set_attr(symbol_toEdit, "display", "none")
+                    } else {
+                      cx_new <- frame_info$min_x + (value_set[n_symbols] - frame_info$scale_min) * frame_info$scaling_x 
+                      xml2::xml_set_attr(symbol_toEdit, "display", NULL)
+                      xml2::xml_set_attr(symbol_toEdit, "cx", cx_new)
+                    }
                   }
                   
                 })
@@ -1479,11 +1724,58 @@ linesSymbols_edit_rects <- function (svg, group, frame_info, value_set, alignmen
   
   # available rects in group
   symbols_inGroup <- xml2::xml_find_all(group, "./rect")
-  if (length(symbols_inGroup)!=length(value_set)) stop(paste0("Falsche Anzahl Rechteckelemente in der Gruppe (",length(symbols_inGroup)," vorhanden, ",length(value_set)," erwartet)."))
+  if (length(symbols_inGroup)!=length(value_set))
+  {
+    if (length(symbols_inGroup)>=1 && scatter)
+    {
+      while (length(symbols_inGroup)!=length(value_set))
+      {
+        if (length(symbols_inGroup)<length(value_set)) { element <- xml2::xml_find_first(group, "./rect"); xml2::xml_add_sibling(element,element) }
+        if (length(symbols_inGroup)>length(value_set)) { element <- xml2::xml_find_first(group, "./rect"); xml2::xml_remove(element) }
+        symbols_inGroup <- xml2::xml_find_all(group, "./rect")
+      }
+    } else if (length(symbols_inGroup)==2)
+    {
+      warning("Nur zwei Rechtecke in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibender Abstaende.")
+      x <- as.numeric(xml2::xml_attr(symbols_inGroup, "x"))
+      y <- as.numeric(xml2::xml_attr(symbols_inGroup, "y"))
+      firstrect <- xml2::xml_find_first(group, "./rect")[[1]]
+      for (ee in 3:length(value_set))
+      {
+        newrect <- xml2::xml_add_sibling(.x = firstrect,.value=firstrect)
+        if (alignment == "vertical") xml2::xml_set_attr(newrect,"x",min(x)+(ee-1)*abs(x[1]-x[2]))
+        if (alignment == "horizontal") xml2::xml_set_attr(newrect,"y",min(y)+(ee-1)*abs(y[1]-y[2]))
+      }
+    } else if (length(symbols_inGroup)==1 && length(xml2::xml_find_all(group, "./line"))>0)
+    {
+      warning("Nur ein Rechteck in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibende Abstaende von der Linie her.")
+      x <- as.numeric(xml2::xml_attr(symbols_inGroup, "x"))
+      y <- as.numeric(xml2::xml_attr(symbols_inGroup, "y"))
+      line <- xml2::xml_find_first(group, "./line")
+      height <- abs(as.numeric(xml2::xml_attr(line, "y1")) - as.numeric(xml2::xml_attr(line, "y2")))
+      width <- abs(as.numeric(xml2::xml_attr(line, "x1")) - as.numeric(xml2::xml_attr(line, "x2")))
+      firstrect <- xml2::xml_find_first(group, "./rect")[[1]]
+      for (ee in 2:length(value_set))
+      {
+        newrect <- xml2::xml_add_sibling(.x = firstrect,.value=firstrect)
+        if (alignment == "vertical") xml2::xml_set_attr(newrect,"x",x+(ee-1)*width)
+        if (alignment == "horizontal") xml2::xml_set_attr(newrect,"y",y+(ee-1)*height)
+      }
+    } else stop(paste0("Falsche Anzahl Rechteckelemente in der Gruppe (",length(symbols_inGroup)," vorhanden, ",length(value_set)," erwartet)."))
+    symbols_inGroup <- xml2::xml_find_all(group, "./rect")
+  }
   
   # order of rects
-  symbols_order_x <- order(as.numeric(xml2::xml_attr(symbols_inGroup, "x")))
-  symbols_order_y <- order(as.numeric(xml2::xml_attr(symbols_inGroup, "y")))
+  if (!scatter)
+  {
+    symbols_order_x <- order(as.numeric(xml2::xml_attr(symbols_inGroup, "x")))
+    symbols_order_y <- order(as.numeric(xml2::xml_attr(symbols_inGroup, "y")))
+  }
+  if (scatter)
+  {
+    symbols_order_x <- 1:length(symbols_inGroup)
+    symbols_order_y <- 1:length(symbols_inGroup)
+  }
 
   switch (alignment,
                 
@@ -1491,9 +1783,15 @@ linesSymbols_edit_rects <- function (svg, group, frame_info, value_set, alignmen
                   
                   for (n_symbols in 1:length(symbols_inGroup)) {
                     symbol_toEdit <- symbols_inGroup[symbols_order_x[n_symbols]]
-                    height_half <- as.numeric(xml2::xml_attr(symbol_toEdit, "height")) / 2
-                    y_new <- frame_info$max_y - ((value_set[n_symbols] - frame_info$scale_min) * frame_info$scaling_y + height_half)
-                    xml2::xml_set_attr(symbol_toEdit, "y", y_new)
+                    if (is.na(value_set[n_symbols]))
+                    {
+                      xml2::xml_set_attr(symbol_toEdit, "display", "none")
+                    } else {
+                      height_half <- as.numeric(xml2::xml_attr(symbol_toEdit, "height")) / 2
+                      y_new <- frame_info$max_y - ((value_set[n_symbols] - frame_info$scale_min) * frame_info$scaling_y + height_half)
+                      xml2::xml_set_attr(symbol_toEdit, "display", NULL)
+                      xml2::xml_set_attr(symbol_toEdit, "y", y_new)
+                    }
                   }
                   
                 },
@@ -1502,9 +1800,15 @@ linesSymbols_edit_rects <- function (svg, group, frame_info, value_set, alignmen
                   
                   for (n_symbols in 1:length(symbols_inGroup)) {
                     symbol_toEdit <- symbols_inGroup[symbols_order_y[n_symbols]]
-                    width_half <- as.numeric(xml2::xml_attr(symbol_toEdit, "width")) / 2
-                    x_new <- frame_info$min_x + (value_set[n_symbols] - frame_info$scale_min) * frame_info$scaling_x - width_half
-                    xml2::xml_set_attr(symbol_toEdit, "x", x_new)
+                    if (is.na(value_set[n_symbols]))
+                    {
+                      xml2::xml_set_attr(symbol_toEdit, "display", "none")
+                    } else {
+                      width_half <- as.numeric(xml2::xml_attr(symbol_toEdit, "width")) / 2
+                      x_new <- frame_info$min_x + (value_set[n_symbols] - frame_info$scale_min) * frame_info$scaling_x - width_half
+                      xml2::xml_set_attr(symbol_toEdit, "display", NULL)
+                      xml2::xml_set_attr(symbol_toEdit, "x", x_new)
+                    }
                   }
                   
                 })
@@ -1569,6 +1873,7 @@ linesSymbols <- function (svg, frame_name, group_name, scale_real, values, align
   {
     args <- list(...)
     if (is.null(args[['scatter']])) scatter <- FALSE
+    if (!is.null(args[['scatter']])) scatter <- args[['scatter']]
     if (symbol_type == "circle")    linesSymbols_edit_circles   (svg, group, frame_info, values, alignment, scatter = scatter)
     if (symbol_type == "rect")      linesSymbols_edit_rects     (svg, group, frame_info, values, alignment, scatter = scatter)
     if (symbol_type == "polygon")   linesSymbols_edit_polygons  (svg, group, frame_info, values, alignment, scatter = scatter)
@@ -1598,11 +1903,11 @@ scatterSymbols <- function(svg, frame_name, group_name, scale_real_x, scale_real
   if (!is.null(symbol_type)) {
     if (!symbol_type %in% c("circle","rect","polygon","linegroup")) { stop ("Ungueltiger Symboltyp (symbol_type).") }
   }
-  if (length(dim(values!=2))) stop("Falsches Eingabeformat der Datenwerte (values). Erwarte 2-dimensionales Objekt (dataframe, matrix) mit x-Werten in erster und y-Werten in zweiter Spalte")
+  if (length(dim(values))!=2) stop("Falsches Eingabeformat der Datenwerte (values). Erwarte 2-dimensionales Objekt (dataframe, matrix) mit x-Werten in erster und y-Werten in zweiter Spalte")
   if (!is.numeric(values[,1]) || !is.numeric(values[,2])) { stop ("Ungueltige Datenwerte (values): Nur numerische Werte erlaubt.") }
   # Anpassung mittels linesSymbols
-  svg <- linesSymbols(svg = svg,frame_name = frame_name,group_name = group_name,scale_real = scale_real_x,values = values[,1],alignment = "horizontal",has_lines = FALSE,symbol_type = symbol_type,zero_line = NULL,scatter = TRUE)
-  svg <- linesSymbols(svg = svg,frame_name = frame_name,group_name = group_name,scale_real = scale_real_y,values = values[,2],alignment = "vertical",has_lines = FALSE,symbol_type = symbol_type,zero_line = NULL,scatter = TRUE)
+  svg <- linesSymbols(svg = svg,frame_name = frame_name,group_name = group_name,scale_real = scale_real_x,values = values[,1],alignment = "horizontal",has_lines = FALSE,symbol_type = symbol_type,scatter = TRUE)
+  svg <- linesSymbols(svg = svg,frame_name = frame_name,group_name = group_name,scale_real = scale_real_y,values = values[,2],alignment = "vertical",has_lines = FALSE,symbol_type = symbol_type,scatter = TRUE)
 }
 
 ### TEXT ----
