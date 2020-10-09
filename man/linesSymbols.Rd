@@ -4,9 +4,17 @@
 \alias{linesSymbols}
 \title{Passt Linien- und Symboldiagramme an}
 \usage{
-linesSymbols(svg, frame_name, group_name, scale_real, values,
-  alignment = "horizontal", has_lines = TRUE, symbol_type = NULL,
-  zero_line = NULL)
+linesSymbols(
+  svg,
+  frame_name,
+  group_name,
+  scale_real,
+  values,
+  alignment = "vertical",
+  has_lines = TRUE,
+  symbol_type = NULL,
+  ...
+)
 }
 \arguments{
 \item{svg}{SVG als XML document}
@@ -17,19 +25,24 @@ linesSymbols(svg, frame_name, group_name, scale_real, values,
 
 \item{scale_real}{Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))}
 
-\item{values}{Dataframe bzw. Vektor mit den Werten, eine Zeile pro Gruppe}
+\item{values}{Dataframe bzw. Vektor mit den Werten}
 
-\item{alignment}{Ausrichtung der Symbole. Entweder "horizontal" oder "vertical" (Default: horizontal).}
+\item{alignment}{Ausrichtungsytyp der Symbole/Linien. Entweder "horizontal" (x-Werte anpassen) oder "vertical" (y-Werte anpassen) (Default: vertical).}
 
 \item{has_lines}{Sind Linien vorhanden? (Default = TRUE)}
 
-\item{symbol_type}{Typ der Symbolgruppe, die angepasst werden soll. Derzeit moeglich: "circle" und "rect" (Default: NULL = nur Linie).}
+\item{symbol_type}{Typ der Symbolgruppe, die angepasst werden soll: c("circle","rect","polygon","linegroup"). (Default: NULL = nur Linie).}
 
-\item{zero_line}{Falls es sich um ein Differenzdiagramm mit 0er Linie handelt: Name der 0er Linie. (Default: NULL)}
+\item{...}{Argumente fuer Subfunktionen}
 }
 \value{
 adaptiertes SVG als XML document
 }
 \description{
-Passt die Symbole (und Lininen) in der SVG-Datei vorgefertigtes Symboldiagramm horizontal oder vertikal an. Vorbereitung: Kreissegmente und Linien sind im SVG zu gruppieren. Die Gruppe ist zu benennen.
+Passt die Symbole (und Lininen) in der SVG-Datei vorgefertigtes Symboldiagramm horizontal oder vertikal an. Vorbereitung: Linien und Symbolelemente (siehe Details) sind im SVG zu gruppieren. Die Gruppe ist zu benennen.
+}
+\details{
+Die Linien- und Symbolelemente werden anhand ihrer x/y-Koordinaten von links nach rechts (aufsteigende x-Koordinate) bzw. oben nach unten (aufsteigende y-Koordinate) vorab sortiert und die Datenwerte entsprechend zugewiesen.\cr\cr
+Symboltyp "circle": Kreiselemente vom Typ "circle" im SVG. Passt die Attribute cx und cy an.\cr
+Symboltyp "rect": Rechteckelemente vom Typ "recht" im SVG. Passt die Attribute
 }

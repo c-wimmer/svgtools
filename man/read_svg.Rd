@@ -13,7 +13,7 @@ read_svg(file, enc = "UTF-8", summary = FALSE, display = FALSE)
 
 \item{summary}{Soll Zusammenfassung ueber SVG-File (Anzahl Gruppen, verwendete Farben...) angezeigt werden? (default: FALSE)}
 
-\item{display}{Soll eingelesenes SVG im R-Studio Viewer mithilfe des packages "magick" angezeigt werden? (default: FALSE)}
+\item{display}{Soll eingelesenes SVG (bspw. im R-Studio Viewer) angezeigt werden? (default: FALSE)}
 }
 \value{
 SVG als XML document

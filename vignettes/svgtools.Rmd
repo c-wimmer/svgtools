@@ -1,0 +1,53 @@
+---
+title: "svgtools: Manipulate SVG template files of diagrams."
+author: "Konrad Oberwimmer <konrad.oberwimmer@iqs.gv.at>"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{svgtools: Manipulate SVG template files of diagrams.}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+knit: (function(input, ...) {
+    rmarkdown::render(
+      input,
+      clean = FALSE,
+      run_pandoc = FALSE
+    )
+  })
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+```
+
+# Purpose
+
+
+# Reading, displaying and writing SVG files
+
+# Adjusting bar charts
+## SVG requirements
+Elements (frame, groups) have to be named without spaces or any irregular characters (like _-,;!?).
+## Functions
+
+# Adjusting line and/or symbol charts
+## SVG requirements
+## Functions
+
+# Adjusting scatter plots
+## SVG requirements
+## Functions
+
+# Changing text in text elements
+No special requirements are needed to change text in text elements. The text element can either be named (id-tag in XML) or contain a text to identify it.
+
+Use `changeText()` to manipulate
+
+One thing to be aware of is the 
+
+```{r setup}
+library(svgtools)
+```

@@ -4,12 +4,16 @@
 \alias{write_svg}
 \title{Schreibt SVG in Datei}
 \usage{
-write_svg(svg, file)
+write_svg(svg, file, remove_hidden = TRUE, flatten = FALSE)
 }
 \arguments{
 \item{svg}{SVG als XML document}
 
 \item{file}{Dateiname (inkl. Pfad)}
+
+\item{remove_hidden}{Sollen versteckte Elemente (display="none") entfernt werden? (Default TRUE)}
+
+\item{flatten}{Sollen Gruppierungen entfernt werden (Default FALSE)}
 }
 \description{
 Schreibt SVG in Datei

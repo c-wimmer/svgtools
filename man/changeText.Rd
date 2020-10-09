@@ -4,8 +4,14 @@
 \alias{changeText}
 \title{Ersetzt Text in Textelement}
 \usage{
-changeText(svg, element_name, text, alignment = NULL, in_group = NULL,
-  hide_blank = FALSE)
+changeText(
+  svg,
+  element_name,
+  text,
+  alignment = NULL,
+  in_group = NULL,
+  hide_blank = FALSE
+)
 }
 \arguments{
 \item{svg}{SVG als XML document}

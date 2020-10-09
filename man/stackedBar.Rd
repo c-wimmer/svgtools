@@ -4,9 +4,19 @@
 \alias{stackedBar}
 \title{Passt Balkendiagramm an}
 \usage{
-stackedBar(svg, frame_name, group_name, scale_real, values,
-  alignment = "horizontal", has_labels = TRUE,
-  label_position = "center", decimals = 0, display_limit = 0)
+stackedBar(
+  svg,
+  frame_name,
+  group_name,
+  scale_real,
+  values,
+  alignment = "horizontal",
+  has_labels = TRUE,
+  label_position = "center",
+  decimals = 0,
+  display_limits = 0,
+  ...
+)
 }
 \arguments{
 \item{svg}{SVG als XML document}
@@ -27,7 +37,9 @@ stackedBar(svg, frame_name, group_name, scale_real, values,
 
 \item{decimals}{Anzahl der Dezimalstellen der Wertelabels (Default 0)}
 
-\item{display_limit}{Unter welchem Wert sollen Wertelabels unterdrückt werden? (Default 0)}
+\item{display_limits}{Interval for (small) values, that lead to suppression of the corresponding value labels. If only one value x is given, it is turned into the interval c(-x,x). (Default 0 = no suppression)}
+
+\item{...}{further arguments used internally by \code{\link{centerBar}} and \code{\link{diffBar}}}
 }
 \value{
 adaptiertes SVG als XML document

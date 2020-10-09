@@ -7,7 +7,7 @@
 #' @param file Dateiname (inkl. Pfad)
 #' @param enc Encoding (default: "UTF-8")
 #' @param summary Soll Zusammenfassung ueber SVG-File (Anzahl Gruppen, verwendete Farben...) angezeigt werden? (default: FALSE)
-#' @param display Soll eingelesenes SVG im R-Studio Viewer mithilfe des packages "magick" angezeigt werden? (default: FALSE)
+#' @param display Soll eingelesenes SVG (bspw. im R-Studio Viewer) angezeigt werden? (default: FALSE)
 #' @return SVG als XML document
 #' @export
 #dep: xml2, summary_svg, display_svg
@@ -109,7 +109,6 @@ summary_svg <- function(svg) {
 #' @param height gewuenschte Hoehe (in Pixel) der Ausgabe (default: NULL)
 #' @details Wenn weder Breite noch Hoehe angegeben werden, wird die Originalgroesse (gegeben DPI) ausgegeben. Wenn nur einer dieser Parameter angegeben wird, wird der andere entsprechend des Originalverhaeltnisses automatisch skaliert.
 #' @export
-#dep: magick
 display_svg <- function(svg, width = NULL, height = NULL) {
   rsvg <- rsvg::rsvg(charToRaw(toString(svg)),width = width,height = height) #wandelt das XML-Objekt zunaechst in einen String und dann in Bytes um; wird von von rsvg zu bitmap gerendert
   print(magick::image_read(rsvg))
@@ -121,10 +120,9 @@ display_svg <- function(svg, width = NULL, height = NULL) {
 #' @param remove_hidden Sollen versteckte Elemente (display="none") entfernt werden? (Default TRUE)
 #' @param flatten Sollen Gruppierungen entfernt werden (Default FALSE)
 #' @export
-#dep: xml2, magick
 write_svg <- function(svg, file, remove_hidden = TRUE, flatten = FALSE) {
   
-  save_svg <- xml_new_root(xml2::xml_dtd("svg","-//W3C//DTD SVG 1.1//EN","http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"))
+  save_svg <- xml2::xml_new_root(xml2::xml_dtd("svg","-//W3C//DTD SVG 1.1//EN","http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"))
   xml2::xml_add_child(save_svg,svg,copy=TRUE)
   save_svg <- xml2::xml_root(save_svg)
   
@@ -219,94 +217,44 @@ frame_and_scaling <- function(svg_in, frame_name, scale_minToMax) {
   
 }
 
-
-# elemente ausblenden
-svg_hideElement <- function(svg_in, element_name, element_type) {
-  
-  if (element_type == "text") {
-    
-    elements <- xml2::xml_find_all(svg_in, "./text")
-    
-    for (element_nr in 1:length(element_name)) {
-      
-      element_search <- svg_TextToSvgFormat(element_name[element_nr])
-      check1 <- length(which(xml2::xml_text(elements) == element_search)) == 0
-      check2 <- length(which(xml2::xml_attr(elements, "id") == element_search)) == 0
-      
-      
-      if (check1 & check2) {stop (paste0("Kein Textelement mit der Bezeichnung ", element_name[element_nr], " gefunden."))}
-      
-      if (length(which(xml2::xml_text(elements) == element_search)) == 0) {
-        xml2::xml_set_attr(elements[which(xml2::xml_attr(elements, "id") == 
-                                                  element_search)], "display", "none")
-      } else {
-        xml2::xml_set_attr(elements[which(xml2::xml_text(elements) == 
-                                                  element_search)], "display", "none")
-      }
-      
-    }
-    
+# get x-y-coordinates of text element (independent of attributes used)
+get_text_coords <- function(text)
+{
+  xyattr <- FALSE
+  x <- y <- numeric()
+  if (xml2::xml_has_attr(text,"x"))
+  {
+    xyattr <- TRUE
+    x <- as.numeric(xml2::xml_attr(text,"x"))
+    y <- as.numeric(xml2::xml_attr(text,"y"))
   } else {
-    
-    elements <- xml2::xml_find_all(svg_in, paste0("./", element_type))
-    
-    for (element_nr in 1:length(element_name)) {
-      
-      element_search <- svg_TextToSvgFormat(element_name[element_nr])
-      xml2::xml_set_attr(elements[which(xml2::xml_attr(elements, "id") == 
-                                                element_search)], "display", "none")
-      
-    }
-    
+    transformattr <- xml2::xml_attr(text, "transform")
+    matrix_values_start <- stringr::str_locate(transformattr, "matrix\\(")
+    matrix_values <- stringr::str_sub(transformattr, (matrix_values_start[2] + 1), (nchar(transformattr) - 1))
+    matrix_values <- as.numeric(unlist(strsplit(matrix_values, split = " ")))
+    x <- matrix_values[5]
+    y <- matrix_values[6]
   }
-  
+  return(data.frame(x,y,xyattr))
 }
 
-# wandelt strings in svg-style Strings um
-svg_TextToSvgFormat <- function(input_text) {
-  
-  input_text <- gsub("_", "_x5F_", input_text)
-  input_text <- gsub("\\(", "_x28_", input_text)
-  input_text <- gsub("\\)", "_x29_", input_text)
-  input_text <- gsub("\\,", "C", input_text)
-  input_text <- gsub("\\;", "_x3B_", input_text)
-  input_text <- gsub(" ", "__", input_text)
-  input_text <- gsub("--", "_x2013_", input_text)
-  input_text <- gsub("\\*", "_x2A_", input_text)
-  return(input_text)
-  
-}
-
-# Liest Farbcode von einem Element aus
-svg_getElementColor <- function(svg_in, element_name, element_type) {
-  
-  elements <- xml2::xml_find_all(svg_in, paste0("./", element_type))
-  color_out <- NULL
-  
-  for (element_nr in 1:length(element_name)) {
-    
-    
-    color_out <- c(color_out, xml2::xml_attr(elements[which(xml2::xml_attr(elements, "id") == 
-                                                                    element_name[element_nr])], "fill"))
-    
+# set x-y-coordinates of text element
+set_text_coords <- function(text,x,y,xyattr=FALSE)
+{
+  if (xyattr)
+  {
+    xml2::xml_set_attr(text,"x",x)
+    xml2::xml_set_attr(text,"y",y)
+  } else {
+    transformattr <- xml2::xml_attr(text, "transform")
+    matrix_values_start <- stringr::str_locate(transformattr, "matrix\\(")
+    matrix_values <- stringr::str_sub(transformattr, (matrix_values_start[2] + 1), (nchar(transformattr) - 1))
+    matrix_values <- as.numeric(unlist(strsplit(matrix_values, split = " ")))
+    matrix_values[5] <- x
+    matrix_values[6] <- y
+    transformattr <- paste0("matrix(",paste(matrix_values,collapse=" "), ")")
+    xml2::xml_set_attr(text,"transform",transformattr)
   }
-  
-  return(color_out)
-  
-}
-
-# Ersetzt Farbcode eines Elements
-svg_setElementColor <- function(svg_in, element_name, element_type, color_new) {
-  
-  elements <- xml2::xml_find_all(svg_in, paste0("./", element_type))
-  
-  for (element_nr in 1:length(element_name)) {
-    
-    xml2::xml_set_attr(elements[which(xml2::xml_attr(elements, "id") == 
-                                              element_name[element_nr])], "fill", color_new[element_nr])
-    
-  }
-  
 }
 
 # extract coordinates (points) from polygon into matrix
@@ -329,6 +277,33 @@ set_polygon_coords <- function(polygon,coords)
 }
 
 ### BALKENDIAGRAMME ----
+
+# stackedBar_in: Hilfsfunktion
+# liest angefuehrte Gruppe ein, Check ob eindeutig vorhanden ist. gibt stackedBar Group aus
+stackedBar_in <- function(svg_in, group_name) {
+  
+  # get called group
+  named_groups <- xml2::xml_find_all(svg_in, "/svg/g")
+  index_group <- which(xml2::xml_attr(named_groups, "id") == group_name)
+  if (length(index_group) != 1) {stop("Fehler: Gruppenname nicht gefunden bzw. nicht eindeutig.")}  ## Diese Schritte ev. vorziehen
+  stackedBarGroup <- named_groups[index_group]
+  return(stackedBarGroup)
+  
+}
+
+# stackedBar_checkSub: Hilfsfunktion
+# liest n subgruppen aus, checkt ob n subgruppen == n Werte (rows), gibt n subgruppen aus
+stackedBar_checkSub <- function(stackedBarGroup, values) {
+  
+  n_subgroups <- length(xml2::xml_find_all(stackedBarGroup, "g"))
+  n_subgroups <- ifelse (n_subgroups == 0, 1, n_subgroups)
+  if (n_subgroups != nrow(values)) {
+    stop ("Fehler: Anzahl Subgruppen der gewaehlten Gruppe entspricht nicht der Anzahl der Zeilen der Werte.")
+    #stop ("Error: Number of (sub)groups not identical to number of rows of values.")
+  }
+  return(n_subgroups)
+  
+}
 
 # stackedBar_order_groups: Hilfsfunktion
 # returns the order of the subgroups depending on the x and y values so that the input values can be mapped correctly to the
@@ -363,106 +338,61 @@ stackedBar_order_groups <- function(stackedBarGroup, n_subgroups) {
   
 }  
 
-# stackedBar_in: Hilfsfunktion
-# liest angefuehrte Gruppe ein, Check ob eindeutig vorhanden ist. gibt stackedBar Group aus
-stackedBar_in <- function(svg_in, group_name) {
-  
-  # get called group
-  named_groups <- xml2::xml_find_all(svg_in, "/svg/g")
-  index_group <- which(xml2::xml_attr(named_groups, "id") == group_name)
-  if (length(index_group) != 1) {stop("Fehler: Gruppenname nicht gefunden bzw. nicht eindeutig.")}  ## Diese Schritte ev. vorziehen
-  stackedBarGroup <- named_groups[index_group]
-  return(stackedBarGroup)
-  
-}
-
-# stackedBar_checkSub: Hilfsfunktion
-# liest n subgruppen aus, checkt ob n subgruppen == n Werte (rows), gibt n subgruppen aus
-stackedBar_checkSub <- function(stackedBarGroup, values) {
-  
-  n_subgroups <- length(xml2::xml_find_all(stackedBarGroup, "g"))
-  n_subgroups <- ifelse (n_subgroups == 0, 1, n_subgroups)
-  if (n_subgroups != nrow(values)) {
-    stop ("Fehler: Anzahl Subgruppen der gewaehlten Gruppe entspricht nicht der Anzahl der Zeilen der Werte.")
-    #stop ("Error: Number of (sub)groups not identical to number of rows of values.")
-  }
-  return(n_subgroups)
-  
-}
-
 # Hilfsfunktion: Rechtecke eines stackedBar bearbeiten, startpos und Breite anpassen
-stackedBar_edit_rects <- function(rects, frame_info, value_set, order_rects, alignment) {
+stackedBar_edit_rects <- function(rects, frame_info, value_set, order_rects, alignment, offset=0) {
   
   # check: n values == n bars
   if (length(value_set) != length(rects)) {
     stop ("Fehler: Anzahl Werte entspricht nicht Anzahl Rechtecken.")
   }
   
-  switch(alignment,
-         
-         horizontal = {
-           
-           # first rect
-           rect_start <- which(order_rects == 1)
-           rect_remain <- order_rects[-rect_start]
-           xml2::xml_set_attr(rects[rect_start], "x", frame_info$min_x)
-           xml2::xml_set_attr(rects[rect_start], "width", value_set[1] * frame_info$scaling_x)
-           pos_next <- as.numeric(xml2::xml_attr(rects[rect_start], "x")) + (value_set[1] * frame_info$scaling_x)
-           
-           # remaining rects
-           for (rect_nr in 1:length (order_rects)) {
-             
-             if (order_rects[rect_nr] == 1) {
-               next
-             }
-             
-             index_rect <- which(order_rects == order_rects[rect_nr])
-             xml2::xml_set_attr(rects[index_rect], "x", pos_next)
-             xml2::xml_set_attr(rects[index_rect], "width", value_set[order_rects[rect_nr]] * frame_info$scaling_x)
-             pos_next <- pos_next + value_set[order_rects[rect_nr]] * frame_info$scaling_x
-             
-           }
-           
-         },
-         
-         vertical = {
-           
-           # first rect
-           rect_start <- which(order_rects == 1)
-           rect_remain <- order_rects[-rect_start]
-           xml2::xml_set_attr(rects[rect_start], "y", frame_info$max_y - value_set[1] * frame_info$scaling_y)
-           xml2::xml_set_attr(rects[rect_start], "height", value_set[1] * frame_info$scaling_y)
-           pos_next <- as.numeric(xml2::xml_attr(rects[rect_start], "y"))
-           
-           # remaining rects
-           for (rect_nr in 1:length (order_rects)) {
-             
-             if (order_rects[rect_nr] == 1) {
-               next
-             }
-             
-             index_rect <- which(order_rects == order_rects[rect_nr])
-             xml2::xml_set_attr(rects[index_rect], "y", pos_next - value_set[rect_nr] * frame_info$scaling_y)
-             xml2::xml_set_attr(rects[index_rect], "height", value_set[order_rects[rect_nr]] * frame_info$scaling_y)
-             pos_next <- as.numeric(xml2::xml_attr(rects[rect_nr], "y"))
-             
-           }
-           
-         }) ## TODO: default
+  pos_next <- NULL
   
-  #return(barSet)
-  
+  for (rr in 1:length(value_set))
+  {
+    rect <- rects[order_rects[rr]]
+    if (is.na(value_set[rr]))
+    {
+      xml2::xml_set_attr(rect, "display", "none")
+      next
+    } else {
+      xml2::xml_set_attr(rect, "display", NULL)
+    }
+    if (is.null(pos_next)) #erstes Rechteck
+    {
+      if (alignment=="horizontal")
+      {
+        xml2::xml_set_attr(rect, "x", frame_info$min_x + offset * frame_info$scaling_x)
+        xml2::xml_set_attr(rect, "width", abs(value_set[rr]) * frame_info$scaling_x)
+        pos_next <- as.numeric(xml2::xml_attr(rect, "x")) + (value_set[rr] * frame_info$scaling_x)
+      }
+      if (alignment=="vertical")
+      {
+        xml2::xml_set_attr(rect, "y", frame_info$max_y - value_set[rr] * frame_info$scaling_y - offset * frame_info$scaling_y)
+        xml2::xml_set_attr(rect, "height", abs(value_set[rr]) * frame_info$scaling_y - offset * frame_info$scaling_y)
+        pos_next <- as.numeric(xml2::xml_attr(rect, "y"))
+      }
+    } else { #weitere Rechtecke
+      if (alignment=="horizontal")
+      {
+        xml2::xml_set_attr(rect, "x", pos_next)
+        xml2::xml_set_attr(rect, "width", abs(value_set[rr]) * frame_info$scaling_x)
+        pos_next <- pos_next + value_set[rr] * frame_info$scaling_x
+      }
+      if (alignment=="vertical")
+      {
+        xml2::xml_set_attr(rect, "y", pos_next - value_set[rr] * frame_info$scaling_y)
+        xml2::xml_set_attr(rect, "height", abs(value_set[rr]) * frame_info$scaling_y)
+        pos_next <- as.numeric(xml2::xml_attr(rect, "y"))
+      }
+    }
+  }
 }
 
 # Hilfsfunktion: Textelemente eines stackedBar: richtige Reihenfolge herausfinden
-stackedBar_order_text <- function(barLabels, value_set) {
+stackedBar_order_text <- function(barLabels) {
   
-  labels_value_y <- labels_value_x <- NULL
-  
-  # check: n values == n texts
-  if (length(value_set) != length(barLabels)) {
-    stop ("Fehler: Anzahl Werte entspricht nicht Anzahl Labels.")
-  }
+  labels_value_y <- labels_value_x <- numeric()
   
   for (lb in 1:length(barLabels)) {
     
@@ -485,318 +415,54 @@ stackedBar_order_text <- function(barLabels, value_set) {
 }
 
 # Hilfsfunktion: Text eines stackedBars bearbeiten: Text tauschen, Position anpassen
-stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, order_rects, decimals, displayLimit, labelPosition, alignment) {
+stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, order_rects, decimals, displayLimits, labelPosition, alignment) {
   
-  switch (alignment,
-          
-          horizontal = {
-            
-            for (n_text in 1:length(barLabels)) {
-              
-              # change value
-              text_toChange <- barLabels[order_labels[n_text]]
-              #xml2::xml_text(text_toChange) <- as.character(value_set[order_labels[n_text]])
-              xml2::xml_text(text_toChange) <- format(round(value_set[order_labels[n_text]],decimals),nsmall=decimals,decimal.mark=",",big.mark="",small.mark="")
-              
-              # comply with displayLimit
-              if ((value_set[order_labels[n_text]] < displayLimit) | (value_set[order_labels[n_text]] == 0)) {
-                xml2::xml_set_attr(text_toChange, "display", "none")
-              }
-              
-              # change position
-              rectinfo_pos_x <- as.numeric(xml2::xml_attr(rects[which(order_rects == order_labels[n_text])], "x"))
-              rectinfo_pos_width <- as.numeric(xml2::xml_attr(rects[which(order_rects == order_labels[n_text])], "width"))
-              
-              # label position
-              text_pos_center <- rectinfo_pos_x + (rectinfo_pos_width/2)
-              text_pos_in <- ifelse (value_set[order_labels[n_text]] >= 0, rectinfo_pos_x + 10, 
-                                           rectinfo_pos_x + rectinfo_pos_width - 10)
-              text_pos_out <- ifelse (value_set[order_labels[n_text]] >= 0, rectinfo_pos_x + rectinfo_pos_width - 10,
-                                            rectinfo_pos_x + 10)
-              
-              if (labelPosition == "center") {text_pos <- text_pos_center}
-              if (labelPosition == "start") {text_pos <- text_pos_in}
-              if (labelPosition == "end") {text_pos <- text_pos_out}
+  # check: n values == n texts
+  if (length(value_set) != length(barLabels)) {
+    stop ("Fehler: Anzahl Werte entspricht nicht Anzahl Labels.")
+  }
+  
+  for (rr in 1:length(value_set))
+  {
+    text_toChange <- barLabels[order_labels[rr]]
+    
+    # change value
+    xml2::xml_text(text_toChange) <- format(round(value_set[rr],decimals),nsmall=decimals,decimal.mark=",",big.mark="",small.mark="")
+    
+    # comply with displayLimits and completely ignore NA
+    xml2::xml_set_attr(text_toChange, "display", NULL)
+    if (is.na(value_set[rr])) {
+      xml2::xml_set_attr(text_toChange, "display", "none")
+      next
+    }
+    if ((value_set[rr] > min(displayLimits) && value_set[rr] < max(displayLimits)) | (value_set[rr] == 0)) {
+      xml2::xml_set_attr(text_toChange, "display", "none")
+    }
+    
+    # change position
+    coords <- get_text_coords(text_toChange)
+    rect <- rects[order_rects[rr]]
+    rectinfo_pos_x <- as.numeric(xml2::xml_attr(rect, "x"))
+    rectinfo_pos_y <- as.numeric(xml2::xml_attr(rect, "y"))
+    rectinfo_pos_width <- as.numeric(xml2::xml_attr(rect, "width"))
+    rectinfo_pos_height <- as.numeric(xml2::xml_attr(rect, "height"))
+    if (alignment == "horizontal")
+    {
+      if (labelPosition == "center") text_pos <- rectinfo_pos_x + (rectinfo_pos_width/2)
+      if (labelPosition == "start") text_pos <- ifelse (value_set[rr] >= 0, rectinfo_pos_x + 10, rectinfo_pos_x + rectinfo_pos_width - 10)
+      if (labelPosition == "end") text_pos <- ifelse (value_set[rr] >= 0, rectinfo_pos_x + rectinfo_pos_width - 10, rectinfo_pos_x + 10)
+      set_text_coords(text_toChange,x=text_pos,y=coords$y,xyattr=coords$xyattr)
+      xml2::xml_set_attr(text_toChange, "text-anchor", "middle")
+    } else {
+      if (labelPosition == "center") text_pos <- rectinfo_pos_y + (rectinfo_pos_height/2)
+      if (labelPosition == "start") text_pos <- ifelse (value_set[rr] >= 0, rectinfo_pos_y + rectinfo_pos_height - 10, rectinfo_pos_y + 10)
+      if (labelPosition == "end") text_pos <- ifelse (value_set[rr] >= 0, rectinfo_pos_y + 10, rectinfo_pos_y + rectinfo_pos_height - 10)
+      set_text_coords(text_toChange,x=coords$x,y=text_pos,xyattr=coords$xyattr)
+      xml2::xml_set_attr(text_toChange, "text-anchor", "start")
+      xml2::xml_set_attr(text_toChange, "dominant-baseline", "mathematical")
+    }
+  }
 
-              
-              text_matrix <- xml2::xml_attr(text_toChange, "transform")
-              matrix_values_start <- stringr::str_locate(text_matrix, "matrix\\(")
-              matrix_values <- stringr::str_sub(text_matrix, (matrix_values_start[2] + 1), (nchar(text_matrix) - 1))
-              matrix_values <- as.numeric(unlist(strsplit(matrix_values, split = " ")))
-              
-              text_pos_matrix <- paste0("matrix(", matrix_values[1], " ", matrix_values[2], " ", matrix_values[3], " ", 
-                                              matrix_values[4], " ", text_pos, " ", matrix_values[6], ")")
-              
-              xml2::xml_set_attr(text_toChange, "transform", text_pos_matrix)
-              xml2::xml_set_attr(text_toChange, "text-anchor", "middle")
-              
-            }
-            
-          },
-          
-          vertical = {
-            
-            for (n_text in 1:length(barLabels)) {
-              
-              # change value
-              text_toChange <- barLabels[order_labels[n_text]]
-              #xml2::xml_text(text_toChange) <- as.character(value_set[order_labels[n_text]])
-              xml2::xml_text(text_toChange) <- format(round(value_set[order_labels[n_text]],decimals),nsmall=decimals,decimal.mark=",",big.mark="",small.mark="")
-              
-              # comply with displayLimit
-              if ((value_set[order_labels[n_text]] < displayLimit) | (value_set[order_labels[n_text]] == 0)) {
-                xml2::xml_set_attr(text_toChange, "display", "none")
-              }
-              
-              # change position
-              rectinfo_pos_y <- as.numeric(xml2::xml_attr(rects[which(order_rects == order_labels[n_text])], "y"))
-              rectinfo_pos_height <- as.numeric(xml2::xml_attr(rects[which(order_rects == order_labels[n_text])], "height"))
-              
-              # label position
-              text_pos_center <- rectinfo_pos_y + (rectinfo_pos_height/2)
-              text_pos_in <- ifelse (value_set[order_labels[n_text]] >= 0, rectinfo_pos_y + rectinfo_pos_height - 10, 
-                                           rectinfo_pos_y + 10)
-              text_pos_out <- ifelse (value_set[order_labels[n_text]] >= 0, rectinfo_pos_y + 10,
-                                            rectinfo_pos_y + rectinfo_pos_height - 10)
-              
-              
-              if (labelPosition == "center") {text_pos <- text_pos_center}
-              if (labelPosition == "start") {text_pos <- text_pos_in}
-              if (labelPosition == "end") {text_pos <- text_pos_out}
-              
-              text_matrix <- xml2::xml_attr(text_toChange, "transform")
-              matrix_values_start <- stringr::str_locate(text_matrix, "matrix\\(")
-              matrix_values <- stringr::str_sub(text_matrix, (matrix_values_start[2] + 1), (nchar(text_matrix) - 1))
-              matrix_values <- as.numeric(unlist(strsplit(matrix_values, split = " ")))
-              
-              text_pos_matrix <- paste0("matrix(", matrix_values[1], " ", matrix_values[2], " ", matrix_values[3], " ", 
-                                              matrix_values[4], " ", matrix_values[5], " ", text_pos, ")")
-              
-              xml2::xml_set_attr(text_toChange, "transform", text_pos_matrix)
-              xml2::xml_set_attr(text_toChange, "text-anchor", "start")
-              xml2::xml_set_attr(text_toChange, "dominant-baseline", "mathematical")
-              
-            }
-            
-          })
-  
-}
-
-# Passt Balkenelemente und Textelement hinsichtlich Ausrichtung an
-stackedBar_adjust <- function(svg_in, group_name, alignment, ref_rect = NULL, ref_text = NULL) {
-  
-  # check
-  if (!(alignment %in% c("horizontal", "vertical"))) {stop("alignment paramenter muss 'horizontal' oder 'vertical' sein.")}
-  
-  # check if subgroup has to be adjusted
-  subgroup <- ifelse (grepl("/", group_name) == FALSE, FALSE, TRUE)
-  # check if all subgroups should be adjusted
-  if (subgroup) {
-    subgroup_all <- ifelse (substr(group_name, nchar(group_name), nchar(group_name)) == "/", TRUE, FALSE)
-  }
-  
-  
-  subgroup_levels <- length(unlist(strsplit(group_name, split = "/")))  ## TODO
-  
-  group_name_main <- unlist(strsplit(group_name, split = "/"))[1]
-  group_name_sub <- unlist(strsplit(group_name, split = "/"))[2]
-  
-  symbolGroup <- stackedBar_in(svg_in, group_name_main)
-  symbolGroup_subs <- xml2::xml_find_all(symbolGroup, "g")
-  
-  if (subgroup_all) {
-    symbolGroup_edit <- symbolGroup
-  } else if (subgroup) {
-    symbolGroup_edit <- symbolGroup_subs[which(xml2::xml_attr(symbolGroup_subs, "id") == group_name_sub)]
-  } else {
-    symbolGroup_edit <- symbolGroup
-  }
-  
-  
-  n_subgroups <- length(xml2::xml_find_all(symbolGroup_edit, "g"))
-  if (n_subgroups == 0) {
-    n_subgroups <- 1
-  }
-  
-  
-  # edit rect position
-  if (!is.null(ref_rect)) {
-    
-    for (n_groups in 1:n_subgroups) {
-      
-      if (n_subgroups == 1) {
-        group_toEdit <- symbolGroup_edit
-      } else {
-        group_toEdit <- xml2::xml_find_all(symbolGroup_edit, "./g")[n_groups]
-      }
-      rects <- xml2::xml_find_all(group_toEdit, "./rect")
-      order_rects_x <- order(as.numeric(xml2::xml_attr(rects, "x")))
-      order_rects_y <- order(-as.numeric(xml2::xml_attr(rects, "y")))
-      if (alignment == "horizontal") {order_rects <- order_rects_x}
-      if (alignment == "vertical") {order_rects <- order_rects_y}
-      x_adjust <- xml2::xml_attr(rects[which(order_rects == ref_rect)], "x")
-      y_adjust <- xml2::xml_attr(rects[which(order_rects == ref_rect)], "y")
-      value_adjust <- ifelse (alignment == "horizontal", y_adjust, x_adjust)
-      variable_adjust <- ifelse (alignment == "horizontal", "y", "x")
-      
-      for (rect_nr in 1:length(rects)) {
-        
-        xml2::xml_set_attr(rects[order_rects[rect_nr]], variable_adjust, value_adjust)
-        
-      }
-      
-    }
-    
-  }
-  
-  ## edit text position
-  if (!is.null(ref_text)) {
-    
-    for (n_groups in 1:n_subgroups) {
-      
-      if (n_subgroups == 1) {
-        group_toEdit <- symbolGroup_edit
-      } else {
-        group_toEdit <- xml2::xml_find_all(symbolGroup_edit, "./g")[n_groups]
-      }
-      texts <- xml2::xml_find_all(group_toEdit, "./text")
-      
-      order_textOut <- stackedBar_order_text(texts, 1:length(texts))
-      order_labels_x <- order_textOut$order_labels_x
-      order_labels_y <- order_textOut$order_labels_y
-      if (alignment == "horizontal") {
-        order_labels <- order_labels_x
-      } else {
-        order_labels <- order_labels_y
-      }
-      
-      text_matrix <- xml2::xml_attr(texts[which(order_labels == ref_text)], "transform")
-      matrix_values_start <- stringr::str_locate(text_matrix, "matrix\\(")
-      matrix_values <- stringr::str_sub(text_matrix, (matrix_values_start[2] + 1), (nchar(text_matrix) - 1))
-      matrix_values <- as.numeric(unlist(strsplit(matrix_values, split = " ")))
-      
-      value_adjust <- ifelse(alignment == "horizontal", matrix_values[6], matrix_values[5])
-      variable_adjust <- ifelse(alignment == "horizontal", 6, 5)
-      
-      for (n_text in 1:length(texts)) {
-        
-        text_matrix <- xml2::xml_attr(texts[which(order_labels == n_text)], "transform")
-        matrix_values_start <- stringr::str_locate(text_matrix, "matrix\\(")
-        matrix_values <- stringr::str_sub(text_matrix, (matrix_values_start[2] + 1), (nchar(text_matrix) - 1))
-        matrix_values <- as.numeric(unlist(strsplit(matrix_values, split = " ")))
-        matrix_values[variable_adjust] <- value_adjust
-        text_pos_matrix <- paste0("matrix(", matrix_values[1], " ", matrix_values[2], " ", matrix_values[3], " ", 
-                                        matrix_values[4], " ", matrix_values[5], " ", matrix_values[6], ")")
-        xml2::xml_set_attr(texts[which(order_labels == n_text)], "transform", text_pos_matrix)
-        
-      }
-      
-    }
-    
-  }
-  
-}
-
-# Passt Farben von Balkenelementen und Textelementen eines stackedBars an
-stackedBar_setColor <- function(svg_in, group_name, alignment, color_rects = NULL, color_texts = NULL) {
-  
-  # check if subgroup has to be adjusted
-  subgroup <- ifelse (grepl("/", group_name) == FALSE, FALSE, TRUE)
-  # check if all subgroups should be adjusted
-  if (subgroup) {
-    subgroup_all <- ifelse (substr(group_name, nchar(group_name), nchar(group_name)) == "/", TRUE, FALSE)
-  }
-  
-  subgroup_levels <- length(unlist(strsplit(group_name, split = "/")))  ## TODO
-  
-  group_name_main <- unlist(strsplit(group_name, split = "/"))[1]
-  group_name_sub <- unlist(strsplit(group_name, split = "/"))[2]
-  
-  symbolGroup <- stackedBar_in(svg_in, group_name_main)
-  symbolGroup_subs <- xml2::xml_find_all(symbolGroup, "g")
-  
-  if (subgroup_all) {
-    symbolGroup_edit <- symbolGroup
-  } else if (subgroup) {
-    symbolGroup_edit <- symbolGroup_subs[which(xml2::xml_attr(symbolGroup_subs, "id") == group_name_sub)]
-  } else {
-    symbolGroup_edit <- symbolGroup
-  }
-  
-  
-  n_subgroups <- length(xml2::xml_find_all(symbolGroup_edit, "g"))
-  if (n_subgroups == 0) {
-    n_subgroups <- 1
-  }
-  
-  
-  # rects
-  if (!is.null(color_rects)) {
-    
-    for (n_groups in 1:n_subgroups) {
-      
-      if (n_subgroups == 1) {
-        group_toEdit <- symbolGroup_edit
-      } else {
-        group_toEdit <- xml2::xml_find_all(symbolGroup_edit, "./g")[n_groups]
-      }
-      rects <- xml2::xml_find_all(group_toEdit, "./rect")
-      
-      # check
-      if (length(rects) != length(color_rects)) {
-        stop ("Anzahl Rechtecke entspricht nicht Anzahl Farben.")
-      }
-      
-      order_rects_x <- order(as.numeric(xml2::xml_attr(rects, "x")))
-      order_rects_y <- order(-as.numeric(xml2::xml_attr(rects, "y")))
-      if (alignment == "horizontal") {order_rects <- order_rects_x}
-      if (alignment == "vertical") {order_rects <- order_rects_y}
-      
-      for (n_rects in 1:length(rects)) {
-        
-        xml2::xml_set_attr(rects[order_rects[n_rects]], "fill", color_rects[n_rects])
-        ## TODO: if is.null
-        
-      }
-      
-    }
-    
-  }
-  
-  
-  # texts
-  if (!is.null(color_texts)) {
-    
-    for (n_groups in 1:n_subgroups) {
-      
-      if (n_subgroups == 1) {
-        group_toEdit <- symbolGroup_edit
-      } else {
-        group_toEdit <- xml2::xml_find_all(symbolGroup_edit, "./g")[n_groups]
-      }
-      
-      texts <- xml2::xml_find_all(group_toEdit, "./text")
-      
-      # check
-      if (length(texts) != length(color_texts)) {
-        stop ("Anzahl Lables entspricht nicht Anzahl Farben.")
-      }
-      
-      order_labels <- stackedBar_order_text(texts, 1:length(texts))
-      if (alignment == "horizontal") {order_labels <- order_labels$order_labels_x}
-      if (alignment == "vertical") {order_labels <- order_labels$order_labels_y}
-      
-      for (n_texts in 1:length(texts)) {
-        
-        xml2::xml_set_attr(texts[order_labels[n_texts]], "fill", color_texts[n_texts])
-        ## TODO: if is.null
-        
-      }
-      
-    }
-    
-  }
-  
 }
 
 #' Passt Balkendiagramm an
@@ -811,10 +477,11 @@ stackedBar_setColor <- function(svg_in, group_name, alignment, color_rects = NUL
 #' @param has_labels Sollen Wertelabels angezeigt werden? (Default TRUE)
 #' @param label_position Position der Wertelabels (Default "center")
 #' @param decimals Anzahl der Dezimalstellen der Wertelabels (Default 0)
-#' @param display_limit Unter welchem Wert sollen Wertelabels unterdrückt werden? (Default 0) 
+#' @param display_limits Interval for (small) values, that lead to suppression of the corresponding value labels. If only one value x is given, it is turned into the interval c(-x,x). (Default 0 = no suppression) 
+#' @param ... further arguments used internally by \code{\link{centerBar}} and \code{\link{diffBar}}
 #' @return adaptiertes SVG als XML document
 #' @export
-stackedBar <- function(svg, frame_name, group_name, scale_real, values, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limit = 0) {
+stackedBar <- function(svg, frame_name, group_name, scale_real, values, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limits = 0, ...) {
   
   # check alignment string
   if (!(alignment %in% c("horizontal","vertikal"))) stop("FEHLER: alignment muss 'horizontal' oder 'vertikal' sein!")
@@ -835,7 +502,15 @@ stackedBar <- function(svg, frame_name, group_name, scale_real, values, alignmen
   order_groups <- stackedBar_order_groups(stackedBarGroup, n_subgroups)
   stackedBars_order_x <- order_groups$stackedBars_order_x
   stackedBars_order_y <- order_groups$stackedBars_order_y
-
+  
+  # get offsets (if any)
+  dotargs <- list(...)
+  offset <- rep(0,n_subgroups)
+  if (!is.null(dotargs[["offset"]]))
+  {
+    if (length(dotargs[["offset"]])!=n_subgroups) stop("Internal error: Something went wrong with offsets for stackedBar.")
+    offset <- dotargs[["offset"]]
+  }
   
   # adjust all rect-elements and text-elements of all groups
   for (bar_nr in 1:n_subgroups) {
@@ -855,23 +530,31 @@ stackedBar <- function(svg, frame_name, group_name, scale_real, values, alignmen
     if (alignment == "vertical") {order_rects <- order_rects_y}
     
     # edit rects
-    stackedBar_edit_rects(rects, frame_info, value_set, order_rects, alignment)
+    stackedBar_edit_rects(rects, frame_info, value_set, order_rects, alignment, offset[bar_nr])
 
-    
     ## -- TEXT/LABELS
     # get text elements of group and right ordering
     if (has_labels) {
       
+      # turn display_limits into an interval
+      if (length(display_limits)==1) display_limits <- c(-display_limits,display_limits)
+      
+      # find texts and get order
       barLabels <- xml2::xml_find_all(barSet, "./text")
-      order_textOut <- stackedBar_order_text(barLabels, value_set)
-      order_labels_x <- order_textOut$order_labels_x
-      order_labels_y <- order_textOut$order_labels_y
-      if (alignment == "horizontal") {order_labels <- order_labels_x}
-      if (alignment == "vertical") {order_labels <- order_labels_y}
+      if (length(barLabels)<1) stop("Error: Labels requested but no text elements in (sub)group.") 
+      order_textOut <- stackedBar_order_text(barLabels)
+      if (alignment == "horizontal") {order_labels <- order_textOut$order_labels_x}
+      if (alignment == "vertical") {order_labels <- order_textOut$order_labels_y}
       
       # adjust values and position of text elements
-      stackedBar_edit_text(barLabels, order_labels, value_set, rects, order_rects, decimals, display_limit, label_position, alignment)
+      stackedBar_edit_text(barLabels, order_labels, value_set, rects, order_rects, decimals, display_limits, label_position, alignment)
     
+      # z-position of labels (in front of text)
+      for (bb in 1:length(barLabels))
+      {
+        xml2::xml_add_child(barSet,barLabels[bb])
+        xml2::xml_remove(barLabels[bb])
+      }
     }
 
   }
@@ -881,263 +564,133 @@ stackedBar <- function(svg, frame_name, group_name, scale_real, values, alignmen
   
 }
 
-### DIFFERENZBALKENDIAGRAMME ----
-
-## -- Differenzbalken
-# Differenzbalken edit rects
-diffBar_edit_rects <- function (svg, rects, values, frame_info, frame0_name, order_rects, alignment) {
-  
-  frame0_x <- xml2::xml_find_all(svg, "./line")
-  frame0_x <- as.numeric(xml2::xml_attr(frame0_x[which(xml2::xml_attr(frame0_x, "id")
-                                                                   == frame0_name)], "x1"))
-  frame0_y <- xml2::xml_find_all(svg, "./line")
-  frame0_y <- as.numeric(xml2::xml_attr(frame0_y[which(xml2::xml_attr(frame0_y, "id")
-                                                                   == frame0_name)], "y1"))
-  
-  
-  switch (alignment,
-                
-                "horizontal" = {
-                  
-                  for (rect_nr in 1:length(rects)) {
-                    
-                    if (values[order_rects[rect_nr]] > 0) {
-                      
-                      xml2::xml_set_attr(rects[order_rects[rect_nr]], "x", frame0_x)
-                      xml2::xml_set_attr(rects[order_rects[rect_nr]], 
-                                         "width", values[order_rects[rect_nr]] * frame_info$scaling_x)
-                      
-                    }
-                    
-                    if (values[order_rects[rect_nr]] < 0) {
-                      
-                      xml2::xml_set_attr(rects[order_rects[rect_nr]], "x", frame0_x + values[order_rects[rect_nr]] *
-                                           frame_info$scaling_x)
-                      xml2::xml_set_attr(rects[order_rects[rect_nr]], "width", 
-                                         abs(values[order_rects[rect_nr]]) * frame_info$scaling_x)
-                      
-                    }
-                    
-                    if (values[order_rects[rect_nr]] == 0) {
-                      
-                      xml2::xml_set_attr(rects[order_rects[rect_nr]], "display", "none")
-                      
-                    }
-                    
-                  }
-                  
-                  
-                },
-                
-                "vertical" = {
-                  
-                  for (rect_nr in 1:length(rects)) {
-                    
-                    if (values[order_rects[rect_nr]] > 0) {
-                      
-                      xml2::xml_set_attr(rects[order_rects[rect_nr]], "y", frame0_y)
-                      xml2::xml_set_attr(rects[order_rects[rect_nr]], 
-                                         "height", values[order_rects[rect_nr]] * frame_info$scaling_y)
-                      
-                    }
-                    
-                    if (values[order_rects[rect_nr]] < 0) {
-                      
-                      xml2::xml_set_attr(rects[order_rects[rect_nr]], "y", frame0_y + values[order_rects[rect_nr]] * 
-                                           frame_info$scaling_y)
-                      xml2::xml_set_attr(rects[order_rects[rect_nr]], "height", 
-                                         abs(values[order_rects[rect_nr]]) * frame_info$scaling_y)
-                      
-                    }
-                    
-                    if (values[order_rects[rect_nr]] == 0) {
-                      
-                      xml2::xml_set_attr(rects[order_rects[rect_nr]], "display", "none")
-                      
-                    }
-                    
-                  }
-                  
-                })
-  
-}
-
-# Differenzbalken edit text
-diffBar_edit_texts <- function (barLabels, order_labels, values, rects, order_rects, displayLimits, decimals, labelPosition, alignment, label_edge, ignore_rotation=TRUE) {
-  
-  if (length(displayLimits)>1) displayLimitRange <- c(min(displayLimits),max(displayLimits))
-  if (length(displayLimits)==1) displayLimitRange <- c(-abs(displayLimits),abs(displayLimits))
-  
-  for (n_text in 1:length(barLabels)) {
-    
-    # change value
-    text_toChange <- barLabels[n_text]
-    numvalue <- values[order_labels[n_text]]
-    value <- format(round(numvalue,decimals),nsmall=decimals,decimal.mark=",",big.mark="",small.mark="")
-    xml2::xml_text(text_toChange) <- value
-    
-    # comply with displayLimit
-    if ((values[order_labels[n_text]] > displayLimitRange[1] & values[order_labels[n_text]] < displayLimitRange[2]) | (values[order_labels[n_text]] == 0)) {
-      xml2::xml_set_attr(text_toChange, "display", "none")
-    }
-    
-    # change position
-    rectinfo_pos_x <- as.numeric(xml2::xml_attr(rects[which(order_rects == order_labels[n_text])], "x"))
-    rectinfo_pos_width <- as.numeric(xml2::xml_attr(rects[which(order_rects == order_labels[n_text])], "width"))
-    rectinfo_pos_y <- as.numeric(xml2::xml_attr(rects[which(order_rects == order_labels[n_text])], "y"))
-    rectinfo_pos_height <- as.numeric(xml2::xml_attr(rects[which(order_rects == order_labels[n_text])], "height"))
-    
-    if (alignment == "horizontal") {
-      
-      text_pos_center <- rectinfo_pos_x + (rectinfo_pos_width/2)
-      text_pos_in <- ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_x + label_edge, 
-                                   rectinfo_pos_x + rectinfo_pos_width - label_edge)
-      text_pos_out <- ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_x + rectinfo_pos_width - label_edge,
-                                    rectinfo_pos_x + label_edge)
-      
-    } else {
-      
-      text_pos_center <- rectinfo_pos_y + (rectinfo_pos_height/2)
-      text_pos_in <- ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_y + rectinfo_pos_height - label_edge, 
-                                   rectinfo_pos_y + label_edge)
-      text_pos_out <- ifelse (values[order_labels[n_text]] >= 0, rectinfo_pos_y + label_edge,
-                                    rectinfo_pos_y + rectinfo_pos_height - label_edge)
-      
-    }
-    
-    if (labelPosition == "center") {text_pos <- text_pos_center}
-    if (labelPosition == "start") {text_pos <- text_pos_in}
-    if (labelPosition == "end") {text_pos <- text_pos_out}
-    
-    if (!is.na(xml2::xml_attr(text_toChange,"transform")))
-    {
-      text_matrix <- xml2::xml_attr(text_toChange, "transform")
-      matrix_values_start <- stringr::str_locate(text_matrix, "matrix\\(")
-      matrix_values <- stringr::str_sub(text_matrix, (matrix_values_start[2] + 1), (nchar(text_matrix) - 1))
-      matrix_values <- as.numeric(unlist(strsplit(matrix_values, split = " ")))
-      pos_x <- matrix_values[5]
-      pos_y <- matrix_values[6]
-      hasTransformAttr <- TRUE
-    }
-    if (is.na(xml2::xml_attr(text_toChange,"transform")))
-    {
-      pos_x <- xml2::xml_attr(text_toChange,"x")
-      pos_y <- xml2::xml_attr(text_toChange,"y")
-      hasTransformAttr <- FALSE
-    }
-    
-    if (!ignore_rotation && hasTransformAttr)
-    {
-      ifelse (alignment == "horizontal", matrix_values[5] <- text_pos, matrix_values[6] <- text_pos)
-      
-      text_pos_matrix <- paste0("matrix(", matrix_values[1], " ", matrix_values[2], " ", matrix_values[3], " ", 
-                                      matrix_values[4], " ", matrix_values[5], " ", matrix_values[6], ")")
-      
-      xml2::xml_set_attr(text_toChange, "transform", text_pos_matrix)
-      xml2::xml_set_attr(text_toChange, "text-anchor", "middle")
-    }
-    
-    if (ignore_rotation || !hasTransformAttr)
-    {
-      if (alignment=="horizontal") pos_x <- text_pos
-      if (alignment=="vertikal") pos_y <- text_pos
-      xml2::xml_set_attr(text_toChange, "x", pos_x)
-      xml2::xml_set_attr(text_toChange, "y", pos_y)
-      xml2::xml_set_attr(text_toChange, "transform", NULL)
-      if (labelPosition == "start") xml2::xml_set_attr(text_toChange, "text-anchor", ifelse(numvalue>0,"start","end"))
-      if (labelPosition == "center") xml2::xml_set_attr(text_toChange, "text-anchor", "middle")
-      if (labelPosition == "end") xml2::xml_set_attr(text_toChange, "text-anchor", ifelse(numvalue>0,"end","start"))
-    }
-    
+#' Bar chart that is aligned around a reference category
+#' 
+#' @param svg SVG als XML document
+#' @param frame_name Name des Rechtseck-Elements mit dem Rahmen des Diagrammbereichs
+#' @param group_name Name der Gruppe mit den Balkenelementen bzw. mehreren Balken
+#' @param scale_real Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))
+#' @param values Dataframe mit den Werten, eine Zeile pro Balken
+#' @param reference Reference category (=column number of values). Bar segments up to this category lie to the left (horizontal) or to the bottom (vertical), bar segments above this category lie to the right (horizontal) or the top (vertical) of the bar chart.
+#' @param nullvalue Value that defines the "center" of the bar segments (for left/right or bottom/top positioning)
+#' @param alignment Ausrichtung der Balken. Entweder "horizontal" (default) oder "vertical"
+#' @param has_labels Sollen Wertelabels angezeigt werden? (Default TRUE)
+#' @param label_position Position der Wertelabels (Default "center")
+#' @param decimals Anzahl der Dezimalstellen der Wertelabels (Default 0)
+#' @param display_limits Interval for (small) values, that lead to suppression of the corresponding value labels. If only one value x is given, it is turned into the interval c(-x,x). (Default 0 = no suppression) 
+#' @return adaptiertes SVG als XML document
+#' @export
+referenceBar <- function(svg, frame_name, group_name, scale_real, values, reference, nullvalue=0, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limits = 0)
+{
+  if (nullvalue < min(scale_real) || nullvalue > max(scale_real)) stop("Error: nullvalue has to be in [min(scale_real),max(scale_real)].")
+  if (is.numeric(values))
+  {
+    if (length(values)<reference) stop("Error: reference category not found, length of values too small.")
+    offset <- nullvalue - min(scale_real) - sum(values[1:reference])
+  } else {
+    if (!("data.frame" %in% class(values))) stop("Error: value has to be either a numeric vector or a dataframe.")
+    if (ncol(values)<reference) stop("Error: reference category not found, number of columns too small.")
+    offset <- rep(nullvalue - min(scale_real),nrow(values))
+    offset <- offset - rowSums(values[,1:reference])
   }
-  
+  return(stackedBar(svg = svg,
+                    frame_name = frame_name,
+                    group_name = group_name,
+                    scale_real = scale_real,
+                    values = values,
+                    alignment = alignment,
+                    has_labels = has_labels,
+                    label_position = label_position,
+                    decimals = decimals,
+                    display_limits = display_limits,
+                    offset = offset))
 }
-
 
 #' Passt Differenzbalkendiagramm an
 #' 
 #' @description Passt ein in der SVG-Datei vorgefertigtes Differenzbalkendiagramm horizontal oder vertikal an. Vorbereitung: Balkensegmente und Wertelabels sind im SVG zu gruppieren. Mehrere solche Gruppen (Balken) können wiederum gruppiert werden. Die äußerste Gruppe ist zu benennen.
 #' @param svg SVG als XML document
 #' @param frame_name Name des Rechtseck-Elements mit dem Rahmen des Diagrammbereichs
-#' @param frame0_name Name der 0er-Linie
 #' @param group_name Name der Gruppe mit den Balkenelementen bzw. mehreren Balken
 #' @param scale_real Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))
 #' @param values Dataframe mit den Werten, eine Zeile pro Balken
+#' @param nullvalue Value that defines the "center" of the bar segments (for left/right or bottom/top positioning)
 #' @param alignment Ausrichtung der Balken. Entweder "horizontal" (default) oder "vertical"
 #' @param has_labels Sollen Wertelabels angezeigt werden? (Default TRUE)
 #' @param label_position Position der Wertelabels (Default "center")
 #' @param decimals Anzahl der Dezimalstellen der Wertelabels (Default 0)
 #' @param display_limits Zwischen welchen Werten (Minimum und Maximum) rund um Null sollen Wertelabels unterdrückt werden? (Default c(0,0) = keine unterdrückten Werte)
-#' @param label_edge Abstand der Labels zum Balkenmaximum bei label_position start/end. (Default 10)
-#' @param ignore_rotation Soll ggf. Rotation der vorbereiteten Textelemente ignoriert werden? (Default TRUE)
 #' @return adaptiertes SVG als XML document
 #' @export
-diffBar <- function(svg, frame_name, frame0_name, group_name, scale_real, values, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limits = c(0,0), label_edge = 10, ignore_rotation = TRUE) {
-  
-  # check alignment string
-  if (!(alignment %in% c("horizontal","vertikal"))) stop("FEHLER: alignment muss 'horizontal' oder 'vertikal' sein!")
-  
-  # get frame info and scaling
-  frame_info <- frame_and_scaling(svg, frame_name, scale_real)
-  
-  # if input-values == vector: transform to data.frame to get n rows
-  if (is.null(nrow(values))) {values <- data.frame(values)}
-  
-  # get called group
-  symbolGroup <- stackedBar_in(svg, group_name)
-  
-  # get n subgroups
-  n_subgroups <- stackedBar_checkSub(symbolGroup, values)
-  
-  # get order of (sub)groups in xml depending on x-value and depending on y-value
-  order_groups <- stackedBar_order_groups(symbolGroup, n_subgroups)
-  diffBars_order_x <- order_groups$stackedBars_order_x
-  diffBars_order_y <- order_groups$stackedBars_order_y
-  
-  
-  # adjust all rect-elements and text-elements of all groups
-  for (bar_nr in 1:n_subgroups) {
-    
-    # values for barSet
-    value_set <- values[bar_nr, ]
-    
-    ## - RECTS
-    # get: barSet, rects of barSet, right ordering
-    if (!n_subgroups == 1) {
-      barSet <- xml2::xml_find_all(symbolGroup, "./g")[diffBars_order_y[bar_nr]]
-    } else {
-      barSet <- symbolGroup
+diffBar <- function(svg, frame_name, group_name, scale_real, values, nullvalue=0, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limits = c(0,0)) 
+{
+  if (nullvalue < min(scale_real) || nullvalue > max(scale_real)) stop("Error: nullvalue has to be in [min(scale_real),max(scale_real)].")
+  if (is.numeric(values))
+  {
+    offset <- nullvalue - min(scale_real)
+    if (any(values<nullvalue)) offset <- offset - abs(sum(values[values<nullvalue]))
+  } else {
+    if (!("data.frame" %in% class(values))) stop("Error: value has to be either a numeric vector or a dataframe.")
+    offset <- rep(nullvalue - min(scale_real),nrow(values))
+    for (rr in 1:nrow(values))
+    {
+      rowvalues <- values[rr,,drop=TRUE]
+      if (any(rowvalues<nullvalue)) offset[rr] <- offset[rr] - abs(sum(rowvalues[rowvalues<nullvalue]))
     }
-    rects <- xml2::xml_find_all(barSet, "./rect")
-    order_rects_x <- order(as.numeric(xml2::xml_attr(rects, "x")))
-    order_rects_y <- order(-as.numeric(xml2::xml_attr(rects, "y")))
-    if (alignment == "horizontal") {order_rects <- order_rects_x}
-    if (alignment == "vertical") {order_rects <- order_rects_y}
-    
-    # edit rects
-    diffBar_edit_rects(svg, rects, value_set, frame_info, frame0_name, order_rects, alignment)
-    
-    
-    ## -- TEXT/LABELS
-    # get text elements of group and right ordering
-    if (has_labels) {
-      
-      barLabels <- xml2::xml_find_all(barSet, "./text")
-      order_textOut <- stackedBar_order_text(barLabels, value_set)
-      order_labels_x <- order_textOut$order_labels_x
-      order_labels_y <- order_textOut$order_labels_y
-      if (alignment == "horizontal") {order_labels <- order_labels_x}
-      if (alignment == "vertical") {order_labels <- order_labels_y}
-      
-      # adjust values and position of text elements
-      diffBar_edit_texts(barLabels, order_labels, value_set, rects, order_rects, display_limits, decimals, label_position, alignment, label_edge, ignore_rotation)
-      
-    }
-    
   }
-  
-  return(svg)
-  
+  return(stackedBar(svg = svg,
+                    frame_name = frame_name,
+                    group_name = group_name,
+                    scale_real = scale_real,
+                    values = values,
+                    alignment = alignment,
+                    has_labels = has_labels,
+                    label_position = label_position,
+                    decimals = decimals,
+                    display_limits = display_limits,
+                    offset = offset))
+}
+
+#' Bar chart representing percentiles
+#' 
+#' @param svg SVG als XML document
+#' @param frame_name Name des Rechtseck-Elements mit dem Rahmen des Diagrammbereichs
+#' @param group_name Name der Gruppe mit den Balkenelementen bzw. mehreren Balken
+#' @param scale_real Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))
+#' @param values Vector or dataframe with percentile values
+#' @param alignment Ausrichtung der Balken. Entweder "horizontal" (default) oder "vertical"
+#' @return adaptiertes SVG als XML document
+#' @export
+percentileBar <- function(svg, frame_name, group_name, scale_real, values, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limits = c(0,0)) 
+{
+  if (is.numeric(values))
+  {
+    if (length(values)<2) stop("Error: at least two values are needed for percentile bars.")
+    values <- values[order(values)]
+    offset <- (min(values) - min(scale_real))
+    for (vv in 1:(length(values)-1)) values[vv] <- (values[vv+1] - values[vv])
+    values <- values[-length(values)]
+  } else {
+    if (!("data.frame" %in% class(values))) stop("Error: value has to be either a numeric vector or a dataframe.")
+    if (ncol(values)<2) stop("Error: at least two values are needed for percentile bars.")
+    for (rr in 1:nrow(values))
+    {
+      values1 <- values[rr,]
+      values1 <- values1[order(values1)]
+      values[rr,] <- values1
+    }
+    offset <- (values[,1] - min(scale_real))
+    for (vv in 1:(ncol(values)-1)) values[,vv] <- (values[,vv+1] - values[,vv])
+    values <- values[,-ncol(values)]
+  }
+  return(stackedBar(svg = svg,
+                    frame_name = frame_name,
+                    group_name = group_name,
+                    scale_real = scale_real,
+                    values = values,
+                    alignment = alignment,
+                    has_labels = FALSE,
+                    offset = offset))
 }
 
 ### LINIEN- UND SYMBOLDIAGRAMME ----
@@ -1258,7 +811,7 @@ linesSymbols_info_polygons <- function (polygons_inGroup) {
   
   for (pp in 1:length(polygons_inGroup))
   {
-    dat_polygons <- plyr::rbind.fill(dat_polygons,data.frame(Index = pp))
+    dat_polygons[pp,"Index"] <- pp
     min_x <- min_y <- Inf
     max_x <- max_y <- -Inf
     points <- get_polygon_coords(polygons_inGroup[pp])
@@ -1421,7 +974,7 @@ linesSymbols_info_linegroups <- function (linegroups_inGroup) {
   
   for (pp in 1:length(linegroups_inGroup))
   {
-    dat_linegroups <- plyr::rbind.fill(dat_linegroups,data.frame(Index = pp))
+    dat_linegroups[pp,"Index"] <- pp
     min_x <- min_y <- Inf
     max_x <- max_y <- -Inf
     lines <- xml2::xml_find_all(linegroups_inGroup[pp], "./line")
