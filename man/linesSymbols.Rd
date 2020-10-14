@@ -2,7 +2,7 @@
 % Please edit documentation in R/svgtools.R
 \name{linesSymbols}
 \alias{linesSymbols}
-\title{Passt Linien- und Symboldiagramme an}
+\title{Adjust line and/or symbol charts}
 \usage{
 linesSymbols(
   svg,
@@ -17,32 +17,40 @@ linesSymbols(
 )
 }
 \arguments{
-\item{svg}{SVG als XML document}
+\item{svg}{XML document with SVG content}
 
-\item{frame_name}{Name des Grafikrahmens.}
+\item{frame_name}{Name (attribute 'id') of frame (XML element 'rect') for positioning of elements.}
 
-\item{group_name}{Name der Gruppe mit den zu bearbeitenden Symbolen (und optional Verbindungslinien).}
+\item{group_name}{Name (attribute 'id') of group (XML element 'g') with lines and/or symbols.}
 
-\item{scale_real}{Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))}
+\item{scale_real}{Numeric vector (e.g. \code{c(0,100)}) of arbitrary length. Only minimum and maximum are used for scaling of values.}
 
-\item{values}{Dataframe bzw. Vektor mit den Werten}
+\item{values}{Numeric vector. If a dataframe or matrix is provided, only the first row will be used.}
 
-\item{alignment}{Ausrichtungsytyp der Symbole/Linien. Entweder "horizontal" (x-Werte anpassen) oder "vertical" (y-Werte anpassen) (Default: vertical).}
+\item{alignment}{Character value. Accepts 'horizontal' or 'vertical' (default). See details.}
 
-\item{has_lines}{Sind Linien vorhanden? (Default = TRUE)}
+\item{has_lines}{Are there lines? (default TRUE)}
 
-\item{symbol_type}{Typ der Symbolgruppe, die angepasst werden soll: c("circle","rect","polygon","linegroup"). (Default: NULL = nur Linie).}
+\item{symbol_type}{Character value. Accepts 'circle', 'rect', 'polygon' or 'linegroup'; see details. (default NULL = no symbols)}
 
-\item{...}{Argumente fuer Subfunktionen}
+\item{...}{Further arguments used internally by \code{\link{scatterSymbols}}.}
 }
 \value{
-adaptiertes SVG als XML document
+XML document with SVG content
 }
 \description{
-Passt die Symbole (und Lininen) in der SVG-Datei vorgefertigtes Symboldiagramm horizontal oder vertikal an. Vorbereitung: Linien und Symbolelemente (siehe Details) sind im SVG zu gruppieren. Die Gruppe ist zu benennen.
+Adjusts the horizontal (XML attributes 'x', 'x1', 'x2', 'cx' etc.) or vertical (XML attributes 'y', 'y1', 'y2', 'cy' etc.) position of lines (XML elements of type 'line') and/or symbols (see details). Positions are calculated relative to a given frame (XML element of type 'rect') and the position of a data value within the minimum and maximum of a given scale. This process is called scaling.\cr
+In preparation, it is necessary to name a group (set attribute 'id' of XML element of type 'g') of lines and/or symbols.
 }
 \details{
-Die Linien- und Symbolelemente werden anhand ihrer x/y-Koordinaten von links nach rechts (aufsteigende x-Koordinate) bzw. oben nach unten (aufsteigende y-Koordinate) vorab sortiert und die Datenwerte entsprechend zugewiesen.\cr\cr
-Symboltyp "circle": Kreiselemente vom Typ "circle" im SVG. Passt die Attribute cx und cy an.\cr
-Symboltyp "rect": Rechteckelemente vom Typ "recht" im SVG. Passt die Attribute
+Note: 'Horizontal' alignment refers to adjustment of the x-coordinates of elements, 'vertical' alignment to adjustment of the y-coordinates. This is not to be confused with the orientation of the resulting polyline (and/or the sequence of symbols) that goes from left to right (with \code{alignment='vertical'}) or from top to bottom (with \code{alignment='horizontal'}).\cr
+Line elements and/or symbols may be grouped together in any order in the SVG file. The function will automatically use XML elements from left to right (with \code{alignment='vertical'}) or top to bottom (with \code{alignment='horizontal'}) according to their x/y-coordinates.\cr
+Line elements and/or symbols must be prepared in the SVG file in one of the following amounts: a) same amount as data values (or one element less in case of lines), b) one line and/or or two symbols or c) one line \emph{and} one symbol. In case of b) and c) the function will automatically duplicate line elements and/or symbols with the assumption of fixed shapes (that is, all lines and/or all symbols will look the same as the 'template' that is provided) and constant distance between the elements on the coordinate that will not be adjusted by \code{values} ('x' with \code{alignment='vertical'} or 'y' with \code{alignment='horizontal'}).\cr
+The function currently supports the following \code{symbol_type}s:
+\itemize{
+\item circle: XML elements of type 'circle'. Attributes 'cx' or 'cy' are adjusted.
+\item rect: XML elements of type 'rect'. Attributes 'x' or 'y' are adjusted.
+\item polygon: XML elements of type 'polygon'. Attribute 'points' is adjusted so that the centroid of the shape matches the scaled value position on the chart.
+\item linegroup: XML elements of type 'g' that contain elements of type 'line'. Attributes 'x1' and 'x2' or 'y1' and 'y2' of those lines are adjusted so that the mean x- or y-coordinate of all lines in the group matches the scaled value position on the chart.
+}
 }

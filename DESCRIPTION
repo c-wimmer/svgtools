@@ -1,6 +1,6 @@
 Package: svgtools
 Type: Package
-Title: Manipulate SVG template files of diagrams.
+Title: Manipulate SVG (template) files of charts.
 Version: 1.0.0
 Date: 2019-04-03
 Authors@R:

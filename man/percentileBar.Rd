@@ -2,7 +2,7 @@
 % Please edit documentation in R/svgtools.R
 \name{percentileBar}
 \alias{percentileBar}
-\title{Bar chart representing percentiles}
+\title{Adjust (stacked) bar chart representing percentiles}
 \usage{
 percentileBar(
   svg,
@@ -10,29 +10,33 @@ percentileBar(
   group_name,
   scale_real,
   values,
-  alignment = "horizontal",
-  has_labels = TRUE,
-  label_position = "center",
-  decimals = 0,
-  display_limits = c(0, 0)
+  alignment = "horizontal"
 )
 }
 \arguments{
-\item{svg}{SVG als XML document}
+\item{svg}{XML document with SVG content}
 
-\item{frame_name}{Name des Rechtseck-Elements mit dem Rahmen des Diagrammbereichs}
+\item{frame_name}{Name (attribute 'id') of frame (XML element 'rect') for positioning bar segments.}
 
-\item{group_name}{Name der Gruppe mit den Balkenelementen bzw. mehreren Balken}
+\item{group_name}{Name (attribute 'id') of group (XML element 'g') containing either bar segments or further groups, containing bar segments themselves.}
 
-\item{scale_real}{Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))}
+\item{scale_real}{Numeric vector (e.g. \code{c(0,100)}) of arbitrary length. Only minimum and maximum are used for scaling of values.}
 
-\item{values}{Vector or dataframe with percentile values}
+\item{values}{Either a numeric vector, a numeric matrix or a dataframe with only numeric columns.\cr
+If a vector is given, it corresponds to one bar (group of bar segments).\cr
+If a matrix or dataframe is given, rows define the value set for several (stacked) bars grouped together.}
 
-\item{alignment}{Ausrichtung der Balken. Entweder "horizontal" (default) oder "vertical"}
+\item{alignment}{Character value. Accepts 'horizontal' (default) or 'vertical'. See details.}
 }
 \value{
-adaptiertes SVG als XML document
+XML document with SVG content
 }
 \description{
-Bar chart representing percentiles
+Adjusts the horizontal (XML attribute 'x') or vertical (XML attribute 'y') position as well as width/height of bar segments (XML elements of type 'rect') and optionally value labels (XML elements of type 'text'). First, values are ordered and transformed to differences between percentiles, providing a starting point and widths/heights for bar segments. Then, positions are calculated relative to a given frame (XML element of type 'rect') and the position of a value within the minimum and maximum of a given scale.\cr
+No value labels are possible for this type of bar chart.\cr
+For further description see \code{\link{stackedBar}}.
+}
+\details{
+In contrast to \code{\link{stackedBar}} the value set(s) need(s) to have one more element than bar segments in each group.\cr
+For everything else, see \code{\link{stackedBar}}.
 }

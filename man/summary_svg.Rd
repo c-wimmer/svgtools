@@ -2,13 +2,21 @@
 % Please edit documentation in R/svgtools.R
 \name{summary_svg}
 \alias{summary_svg}
-\title{Gibt eine Summary von eingelesenem SVG auf der Konsole aus}
+\title{Print summary of SVG file structure in console}
 \usage{
 summary_svg(svg)
 }
 \arguments{
-\item{svg}{SVG als XML document}
+\item{svg}{XML document with SVG content.}
 }
 \description{
-Gibt eine Summary von eingelesenem SVG auf der Konsole aus
+Print summary of SVG file structure in console
+}
+\details{
+Prints helpful information to verify the content of the SVG file:
+\itemize{
+\item Named groups (XML elements 'g' with attribute 'id') and number of their child elements
+\item Available frames (XML elements 'rect' with attribute 'id')
+\item Used fonts, font sizes and font colors (in any XML elements with attributes 'font-family', 'font-size', 'fill' and 'stroke')
+}
 }

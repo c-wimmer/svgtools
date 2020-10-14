@@ -2,7 +2,7 @@
 % Please edit documentation in R/svgtools.R
 \name{diffBar}
 \alias{diffBar}
-\title{Passt Differenzbalkendiagramm an}
+\title{Adjust bar chart where bars lie to the left/right or bottom/top of a given nullvalue}
 \usage{
 diffBar(
   svg,
@@ -19,31 +19,37 @@ diffBar(
 )
 }
 \arguments{
-\item{svg}{SVG als XML document}
+\item{svg}{XML document with SVG content}
 
-\item{frame_name}{Name des Rechtseck-Elements mit dem Rahmen des Diagrammbereichs}
+\item{frame_name}{Name (attribute 'id') of frame (XML element 'rect') for positioning bar segments (and value labels).}
 
-\item{group_name}{Name der Gruppe mit den Balkenelementen bzw. mehreren Balken}
+\item{group_name}{Name (attribute 'id') of group (XML element 'g') containing either bar segments (and value labels) or further groups, containing bar segments (and value labels) themselves.}
 
-\item{scale_real}{Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))}
+\item{scale_real}{Numeric vector (e.g. \code{c(0,100)}) of arbitrary length. Only minimum and maximum are used for scaling of values.}
 
-\item{values}{Dataframe mit den Werten, eine Zeile pro Balken}
+\item{values}{Either a numeric vector, a numeric matrix or a dataframe with only numeric columns.\cr
+If a vector is given, it corresponds to one bar (group of bar segments and, optionally, value labels).\cr
+If a matrix or dataframe is given, rows define the value set for several (stacked) bars grouped together.}
 
 \item{nullvalue}{Value that defines the "center" of the bar segments (for left/right or bottom/top positioning)}
 
-\item{alignment}{Ausrichtung der Balken. Entweder "horizontal" (default) oder "vertical"}
+\item{alignment}{Character value. Accepts 'horizontal' (default) or 'vertical'. See details.}
 
-\item{has_labels}{Sollen Wertelabels angezeigt werden? (Default TRUE)}
+\item{has_labels}{Are there value labels (of XML type 'text') to adjust? (default TRUE)}
 
-\item{label_position}{Position der Wertelabels (Default "center")}
+\item{label_position}{Character value. Accepts 'start', 'center' (default) and 'end'. This refers to the underlying bar segments.}
 
-\item{decimals}{Anzahl der Dezimalstellen der Wertelabels (Default 0)}
+\item{decimals}{Integer value defining the number of decimal digits of value labels (default 0).}
 
-\item{display_limits}{Zwischen welchen Werten (Minimum und Maximum) rund um Null sollen Wertelabels unterdrückt werden? (Default c(0,0) = keine unterdrückten Werte)}
+\item{display_limits}{Interval for (small) values, that lead to suppression of the corresponding value labels. If only one value x is given, it is turned into the interval c(-x,x). (default 0 = no suppression)}
 }
 \value{
-adaptiertes SVG als XML document
+XML document with SVG content
 }
 \description{
-Passt ein in der SVG-Datei vorgefertigtes Differenzbalkendiagramm horizontal oder vertikal an. Vorbereitung: Balkensegmente und Wertelabels sind im SVG zu gruppieren. Mehrere solche Gruppen (Balken) können wiederum gruppiert werden. Die äußerste Gruppe ist zu benennen.
+Adjusts the horizontal (XML attribute 'x') or vertical (XML attribute 'y') position as well as width/height of bar segments (XML elements of type 'rect') and optionally value labels (XML elements of type 'text'). Positions are calculated relative to a given frame (XML element of type 'rect'), a nullvalue and the position of a data value within the minimum and maximum of a given scale. Bar segments and, optionally, value labels with values lower than the nullvalue are positioned to the left (in horizontal alignment) or to the bottom (in vertical alignment) of the scaled nullvalue, higher values on the opposite side.\cr
+For further description see \code{\link{stackedBar}}.
+}
+\details{
+See \code{\link{stackedBar}}.
 }

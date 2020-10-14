@@ -2,20 +2,21 @@
 % Please edit documentation in R/svgtools.R
 \name{display_svg}
 \alias{display_svg}
-\title{Zeigt eingelesenes SVG an}
+\title{Display SVG on standard graphic display port}
 \usage{
 display_svg(svg, width = NULL, height = NULL)
 }
 \arguments{
-\item{svg}{SVG als XML document}
+\item{svg}{XML document with SVG content.}
 
-\item{width}{gewuenschte Breite (in Pixel) der Ausgabe (default: NULL)}
+\item{width}{Desired width (in px) of image (default NULL).}
 
-\item{height}{gewuenschte Hoehe (in Pixel) der Ausgabe (default: NULL)}
+\item{height}{Desired height (in px) of image (default NULL).}
 }
 \description{
-Die Funktionalitaet haengt von der Entwicklungsumgebung ab. In RStudio wird das SVG im Viewer angezeigt.
+Display SVG on standard graphic display port
 }
 \details{
-Wenn weder Breite noch Hoehe angegeben werden, wird die Originalgroesse (gegeben DPI) ausgegeben. Wenn nur einer dieser Parameter angegeben wird, wird der andere entsprechend des Originalverhaeltnisses automatisch skaliert.
+Viewport depends on system and IDE. In RStudio the image is displayed under 'Viewer'.\cr
+If neither width nor height are specified the image will have its size depending on DPI settings. If only one of these is specified, the other one is scaled accordingly.
 }

@@ -2,19 +2,22 @@
 % Please edit documentation in R/svgtools.R
 \name{write_svg}
 \alias{write_svg}
-\title{Schreibt SVG in Datei}
+\title{Writes SVG to file}
 \usage{
 write_svg(svg, file, remove_hidden = TRUE, flatten = FALSE)
 }
 \arguments{
-\item{svg}{SVG als XML document}
+\item{svg}{XML document with SVG content.}
 
-\item{file}{Dateiname (inkl. Pfad)}
+\item{file}{Path to file or connection to write to (see \code{\link{xml2::write_xml}}).}
 
-\item{remove_hidden}{Sollen versteckte Elemente (display="none") entfernt werden? (Default TRUE)}
+\item{remove_hidden}{Should hidden elements (with XML attribute display="none") be removed? (default TRUE)}
 
-\item{flatten}{Sollen Gruppierungen entfernt werden (Default FALSE)}
+\item{flatten}{Should grouping of SVG elements be removed? (default FALSE)}
 }
 \description{
-Schreibt SVG in Datei
+Writes SVG to file
+}
+\details{
+Both \code{remove_hidden=TRUE} and \code{flatten=TRUE} do not alter the XML document object itself. Therefore, subsequent calls to \code{\link{stackedBar}} and other functions remain possible.
 }

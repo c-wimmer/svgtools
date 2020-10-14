@@ -3,14 +3,13 @@
 
 ### DATEIMANAGEMENT ----
 
-#' Liest eine SVG-Datei ein
-#' @param file Dateiname (inkl. Pfad)
-#' @param enc Encoding (default: "UTF-8")
-#' @param summary Soll Zusammenfassung ueber SVG-File (Anzahl Gruppen, verwendete Farben...) angezeigt werden? (default: FALSE)
-#' @param display Soll eingelesenes SVG (bspw. im R-Studio Viewer) angezeigt werden? (default: FALSE)
-#' @return SVG als XML document
+#' Read SVG file and return XML document
+#' @param file A string, a connection, or a raw vector. See \code{\link{xml2::read_xml}}.
+#' @param enc Encoding (default 'UTF-8').
+#' @param summary Show summary of SVG file (\code{\link{summary_svg}})? (default FALSE)
+#' @param display Display SVG on standard display port (\code{\link{display_svg}})? (default FALSE)
+#' @return XML document with SVG content
 #' @export
-#dep: xml2, summary_svg, display_svg
 read_svg <- function(file, enc = "UTF-8", summary = FALSE, display = FALSE) {
   
   # read xml
@@ -28,10 +27,15 @@ read_svg <- function(file, enc = "UTF-8", summary = FALSE, display = FALSE) {
   
 }
 
-#' Gibt eine Summary von eingelesenem SVG auf der Konsole aus
-#' @param svg SVG als XML document
+#' Print summary of SVG file structure in console
+#' @param svg XML document with SVG content.
+#' @details Prints helpful information to verify the content of the SVG file:
+#' \itemize{
+#' \item Named groups (XML elements 'g' with attribute 'id') and number of their child elements
+#' \item Available frames (XML elements 'rect' with attribute 'id')
+#' \item Used fonts, font sizes and font colors (in any XML elements with attributes 'font-family', 'font-size', 'fill' and 'stroke')
+#' }
 #' @export
-#dep: xml2
 summary_svg <- function(svg) {
   
   print ("************************")
@@ -101,24 +105,24 @@ summary_svg <- function(svg) {
   
 }
 
-#' Zeigt eingelesenes SVG an
-#' 
-#' @description Die Funktionalitaet haengt von der Entwicklungsumgebung ab. In RStudio wird das SVG im Viewer angezeigt.
-#' @param svg SVG als XML document
-#' @param width gewuenschte Breite (in Pixel) der Ausgabe (default: NULL)
-#' @param height gewuenschte Hoehe (in Pixel) der Ausgabe (default: NULL)
-#' @details Wenn weder Breite noch Hoehe angegeben werden, wird die Originalgroesse (gegeben DPI) ausgegeben. Wenn nur einer dieser Parameter angegeben wird, wird der andere entsprechend des Originalverhaeltnisses automatisch skaliert.
+#' Display SVG on standard graphic display port
+#' @param svg XML document with SVG content.
+#' @param width Desired width (in px) of image (default NULL).
+#' @param height Desired height (in px) of image (default NULL).
+#' @details Viewport depends on system and IDE. In RStudio the image is displayed under 'Viewer'.\cr
+#' If neither width nor height are specified the image will have its size depending on DPI settings. If only one of these is specified, the other one is scaled accordingly.
 #' @export
 display_svg <- function(svg, width = NULL, height = NULL) {
   rsvg <- rsvg::rsvg(charToRaw(toString(svg)),width = width,height = height) #wandelt das XML-Objekt zunaechst in einen String und dann in Bytes um; wird von von rsvg zu bitmap gerendert
   print(magick::image_read(rsvg))
 }
 
-#' Schreibt SVG in Datei
-#' @param svg SVG als XML document
-#' @param file Dateiname (inkl. Pfad)
-#' @param remove_hidden Sollen versteckte Elemente (display="none") entfernt werden? (Default TRUE)
-#' @param flatten Sollen Gruppierungen entfernt werden (Default FALSE)
+#' Writes SVG to file
+#' @param svg XML document with SVG content.
+#' @param file Path to file or connection to write to (see \code{\link{xml2::write_xml}}).
+#' @param remove_hidden Should hidden elements (with XML attribute display="none") be removed? (default TRUE)
+#' @param flatten Should grouping of SVG elements be removed? (default FALSE)
+#' @details Both \code{remove_hidden=TRUE} and \code{flatten=TRUE} do not alter the XML document object itself. Therefore, subsequent calls to \code{\link{stackedBar}} and other functions remain possible.
 #' @export
 write_svg <- function(svg, file, remove_hidden = TRUE, flatten = FALSE) {
   
@@ -157,11 +161,7 @@ write_svg <- function(svg, file, remove_hidden = TRUE, flatten = FALSE) {
 
 ### ALLGEMEINE HILFSFUNKTIONEN ----
 
-## -- frame_and_scaling: Hilfsfunktion: Liest Infos des genannten Rahmens aus und berechnet Skalierung
-# svg_in: svg objekt
-# frame_name: gesuchter Rahmenname; Zusatzcheck: Error, wenn Rahmenname nicht oder >1 vorhanden ist
-# scale_minToMax: Skala min bis max, z.B. 0:100
-# dep: xml2
+# Liest Infos des genannten Rahmens aus und berechnet Skalierung
 # TODO: Check, ob sinnvolle Skala eingegeben wurde (?)
 frame_and_scaling <- function(svg_in, frame_name, scale_minToMax) {
   
@@ -186,7 +186,7 @@ frame_and_scaling <- function(svg_in, frame_name, scale_minToMax) {
   if (length(fr) != 1) {
     
     rects <- xml2::xml_find_all(svg_in, "/svg/rect")
-    frames_av <- NULL
+    frames_av <- character()
     
     for (rect in rects)
     {
@@ -195,9 +195,7 @@ frame_and_scaling <- function(svg_in, frame_name, scale_minToMax) {
         frames_av <- c(frames_av, xml2::xml_attr(rect, "id"))
       }
     }
-    stop(paste0("Rahmen konnte nicht gefunden werden oder es gibt mehr Rahmen mit dem gleichen Namen.
-                      Verfuegbare Rahmen:", frames_av))
-    #stop(paste0("Frame not in document or more than one frames with the same name. Available frames:", frames_av))
+    stop(paste0("Error: Frame not found or more than one frames with the same name. Available frames:", paste(frames_av, collapse=", ")))
     
   }
   
@@ -218,8 +216,7 @@ frame_and_scaling <- function(svg_in, frame_name, scale_minToMax) {
 }
 
 # get x-y-coordinates of text element (independent of attributes used)
-get_text_coords <- function(text)
-{
+get_text_coords <- function(text) {
   xyattr <- FALSE
   x <- y <- numeric()
   if (xml2::xml_has_attr(text,"x"))
@@ -239,8 +236,7 @@ get_text_coords <- function(text)
 }
 
 # set x-y-coordinates of text element
-set_text_coords <- function(text,x,y,xyattr=FALSE)
-{
+set_text_coords <- function(text,x,y,xyattr=FALSE) {
   if (xyattr)
   {
     xml2::xml_set_attr(text,"x",x)
@@ -258,8 +254,7 @@ set_text_coords <- function(text,x,y,xyattr=FALSE)
 }
 
 # extract coordinates (points) from polygon into matrix
-get_polygon_coords <- function(polygon)
-{
+get_polygon_coords <- function(polygon) {
   points <- xml2::xml_attr(polygon,"points")
   points <- strsplit(stringr::str_squish(points)," ",fixed = TRUE)[[1]]
   points <- strsplit(points,",",fixed = TRUE)
@@ -269,8 +264,7 @@ get_polygon_coords <- function(polygon)
 }
 
 # coerce coordinates from matrix and set them as point attribute
-set_polygon_coords <- function(polygon,coords)
-{
+set_polygon_coords <- function(polygon,coords) {
   points <- apply(coords,1,paste,collapse=",")
   points <- paste(points,collapse=" ")
   xml2::xml_set_attr(polygon,"points",points)
@@ -278,34 +272,42 @@ set_polygon_coords <- function(polygon,coords)
 
 ### BALKENDIAGRAMME ----
 
-# stackedBar_in: Hilfsfunktion
 # liest angefuehrte Gruppe ein, Check ob eindeutig vorhanden ist. gibt stackedBar Group aus
 stackedBar_in <- function(svg_in, group_name) {
   
   # get called group
   named_groups <- xml2::xml_find_all(svg_in, "/svg/g")
   index_group <- which(xml2::xml_attr(named_groups, "id") == group_name)
-  if (length(index_group) != 1) {stop("Fehler: Gruppenname nicht gefunden bzw. nicht eindeutig.")}  ## Diese Schritte ev. vorziehen
+  if (length(index_group) != 1)
+  {
+    groups <- xml2::xml_find_all(svg_in, "/svg/g")
+    groups_av <- character()
+    for (group in groups)
+    {
+      if (xml2::xml_has_attr(group, "id"))
+      {
+        groups_av <- c(groups_av, xml2::xml_attr(group, "id"))
+      }
+    }
+    stop(paste0("Error: Group not found or more than one groups with the same name. Available groups:", paste(groups_av, collapse=", ")))
+  }
   stackedBarGroup <- named_groups[index_group]
   return(stackedBarGroup)
   
 }
 
-# stackedBar_checkSub: Hilfsfunktion
 # liest n subgruppen aus, checkt ob n subgruppen == n Werte (rows), gibt n subgruppen aus
 stackedBar_checkSub <- function(stackedBarGroup, values) {
   
   n_subgroups <- length(xml2::xml_find_all(stackedBarGroup, "g"))
   n_subgroups <- ifelse (n_subgroups == 0, 1, n_subgroups)
   if (n_subgroups != nrow(values)) {
-    stop ("Fehler: Anzahl Subgruppen der gewaehlten Gruppe entspricht nicht der Anzahl der Zeilen der Werte.")
-    #stop ("Error: Number of (sub)groups not identical to number of rows of values.")
+    stop ("Error: Number of (sub)groups not identical to number of rows of values.")
   }
   return(n_subgroups)
   
 }
 
-# stackedBar_order_groups: Hilfsfunktion
 # returns the order of the subgroups depending on the x and y values so that the input values can be mapped correctly to the
 # right stacked bar groups. (order can be mixed up in the svg textfile such that it doesn't corresponds to the displayed svg!!)
 stackedBar_order_groups <- function(stackedBarGroup, n_subgroups) {
@@ -338,12 +340,12 @@ stackedBar_order_groups <- function(stackedBarGroup, n_subgroups) {
   
 }  
 
-# Hilfsfunktion: Rechtecke eines stackedBar bearbeiten, startpos und Breite anpassen
+# Rechtecke eines stackedBar bearbeiten, startpos und Breite anpassen
 stackedBar_edit_rects <- function(rects, frame_info, value_set, order_rects, alignment, offset=0) {
   
   # check: n values == n bars
   if (length(value_set) != length(rects)) {
-    stop ("Fehler: Anzahl Werte entspricht nicht Anzahl Rechtecken.")
+    stop ("Error: Number of data values differs from number of bar segments (XML elements 'rect').")
   }
   
   pos_next <- NULL
@@ -389,7 +391,7 @@ stackedBar_edit_rects <- function(rects, frame_info, value_set, order_rects, ali
   }
 }
 
-# Hilfsfunktion: Textelemente eines stackedBar: richtige Reihenfolge herausfinden
+# Textelemente eines stackedBar: richtige Reihenfolge herausfinden
 stackedBar_order_text <- function(barLabels) {
   
   labels_value_y <- labels_value_x <- numeric()
@@ -414,12 +416,12 @@ stackedBar_order_text <- function(barLabels) {
   
 }
 
-# Hilfsfunktion: Text eines stackedBars bearbeiten: Text tauschen, Position anpassen
+# Text eines stackedBars bearbeiten: Text tauschen, Position anpassen
 stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, order_rects, decimals, displayLimits, labelPosition, alignment) {
   
   # check: n values == n texts
   if (length(value_set) != length(barLabels)) {
-    stop ("Fehler: Anzahl Werte entspricht nicht Anzahl Labels.")
+    stop ("Error: Number of data values differs from number of value labels (XML elements 'text').")
   }
   
   for (rr in 1:length(value_set))
@@ -465,26 +467,33 @@ stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, orde
 
 }
 
-#' Passt Balkendiagramm an
-#' 
-#' @description Passt ein in der SVG-Datei vorgefertigtes (gestapeltes) Balkendiagramm horizontal oder vertikal an. Vorbereitung: Balkensegmente und Wertelabels sind im SVG zu gruppieren. Mehrere solche Gruppen (Balken) können wiederum gruppiert werden. Die äußerste Gruppe ist zu benennen.
-#' @param svg SVG als XML document
-#' @param frame_name Name des Rechtseck-Elements mit dem Rahmen des Diagrammbereichs
-#' @param group_name Name der Gruppe mit den Balkenelementen bzw. mehreren Balken
-#' @param scale_real Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))
-#' @param values Dataframe mit den Werten, eine Zeile pro Balken
-#' @param alignment Ausrichtung der Balken. Entweder "horizontal" (default) oder "vertical"
-#' @param has_labels Sollen Wertelabels angezeigt werden? (Default TRUE)
-#' @param label_position Position der Wertelabels (Default "center")
-#' @param decimals Anzahl der Dezimalstellen der Wertelabels (Default 0)
-#' @param display_limits Interval for (small) values, that lead to suppression of the corresponding value labels. If only one value x is given, it is turned into the interval c(-x,x). (Default 0 = no suppression) 
-#' @param ... further arguments used internally by \code{\link{centerBar}} and \code{\link{diffBar}}
-#' @return adaptiertes SVG als XML document
+#' Adjust (stacked) bar chart to values on a given scale
+#' @description Adjusts the horizontal (XML attribute 'x') or vertical (XML attribute 'y') position as well as width/height of bar segments (XML elements of type 'rect') and optionally value labels (XML elements of type 'text'). Positions are calculated relative to a given frame (XML element of type 'rect') and the position of a data value within the minimum and maximum of a given scale. This process is called scaling.\cr
+#' In preparation, it is necessary to name a group (set attribute 'id' of XML element of type 'g') of bar segments (and value labels). Bar segments (and value labels) need to be of the same amount as there are data values for adjustment.\cr
+#' It is possible to group several such groups together. Only the outer group needs to be named in that case, for convenience.
+#' @param svg XML document with SVG content
+#' @param frame_name Name (attribute 'id') of frame (XML element 'rect') for positioning bar segments (and value labels).
+#' @param group_name Name (attribute 'id') of group (XML element 'g') containing either bar segments (and value labels) or further groups, containing bar segments (and value labels) themselves.
+#' @param scale_real Numeric vector (e.g. \code{c(0,100)}) of arbitrary length. Only minimum and maximum are used for scaling of values.
+#' @param values Either a numeric vector, a numeric matrix or a dataframe with only numeric columns.\cr
+#' If a vector is given, it corresponds to one bar (group of bar segments and, optionally, value labels).\cr
+#' If a matrix or dataframe is given, rows define the value set for several (stacked) bars grouped together.
+#' @param alignment Character value. Accepts 'horizontal' (default) or 'vertical'. See details.
+#' @param has_labels Are there value labels (of XML type 'text') to adjust? (default TRUE)
+#' @param label_position Character value. Accepts 'start', 'center' (default) and 'end'. This refers to the underlying bar segments.
+#' @param decimals Integer value defining the number of decimal digits of value labels (default 0).
+#' @param display_limits Interval for (small) values, that lead to suppression of the corresponding value labels. If only one value x is given, it is turned into the interval c(-x,x). (default 0 = no suppression) 
+#' @param ... Further arguments used internally by \code{\link{referenceBar}}, \code{\link{diffBar}} and \code{\link{percentileBar}}.
+#' @return XML document with SVG content
+#' @details 'Horizontal' alignment refers to adjustment of the x-coordinates of elements, 'vertical' alignment to adjustment of the y-coordinates.\cr
+#' Bar segments and, optionally, value labels may be grouped together in any order in the SVG file. The function will automatically use XML elements from left to right (with \code{alignment='horizontal'}) or bottom to top (with \code{alignment='vertical'}) according to their x/y-coordinates.\cr
+#' Furthermore, the SVG file order of several bars grouped together in an outer group is irrelevant. The function will automatically use bars (that is, groups of bar segments and, optionally, value labels) from top to bottom (with \code{alignment='horizontal'}) or left to right (with \code{alignment='vertical'}) according to the lowest x/y-coordinate of any element.\cr
+#' Bar segments and value labels (if any) are automatically hidden (XML attribute 'diplay' is set to 'none'), when a value of 0 or NA is provided. Subsequent calls to the function with non-zero or non-NA values make such elements reappear in the output.
 #' @export
 stackedBar <- function(svg, frame_name, group_name, scale_real, values, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limits = 0, ...) {
   
   # check alignment string
-  if (!(alignment %in% c("horizontal","vertikal"))) stop("FEHLER: alignment muss 'horizontal' oder 'vertikal' sein!")
+  if (!(alignment %in% c("horizontal","vertical"))) stop("Error: Alignment has to be either 'horizontal' or 'vertical'.")
   
   # get frame info and scaling
   frame_info <- frame_and_scaling(svg, frame_name, scale_real)
@@ -564,24 +573,27 @@ stackedBar <- function(svg, frame_name, group_name, scale_real, values, alignmen
   
 }
 
-#' Bar chart that is aligned around a reference category
-#' 
-#' @param svg SVG als XML document
-#' @param frame_name Name des Rechtseck-Elements mit dem Rahmen des Diagrammbereichs
-#' @param group_name Name der Gruppe mit den Balkenelementen bzw. mehreren Balken
-#' @param scale_real Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))
-#' @param values Dataframe mit den Werten, eine Zeile pro Balken
+#' Adjust (stacked) bar chart that is aligned around a reference category
+#' @description Adjusts the horizontal (XML attribute 'x') or vertical (XML attribute 'y') position as well as width/height of bar segments (XML elements of type 'rect') and optionally value labels (XML elements of type 'text'). Positions are calculated relative to a given frame (XML element of type 'rect'), a nullvalue and the position of a data value within the minimum and maximum of a given scale. The first n bar segments and, optionally, value labels of each bar (n is called the \code{reference} category) are position to the left (in horizontal alignment) or bottom (in vertical alignment) of the nullvalue, while the others are positioned to the right or top.\cr
+#' For further description see \code{\link{stackedBar}}.
+#' @param svg XML document with SVG content
+#' @param frame_name Name (attribute 'id') of frame (XML element 'rect') for positioning bar segments (and value labels).
+#' @param group_name Name (attribute 'id') of group (XML element 'g') containing either bar segments (and value labels) or further groups, containing bar segments (and value labels) themselves.
+#' @param scale_real Numeric vector (e.g. \code{c(0,100)}) of arbitrary length. Only minimum and maximum are used for scaling of values.
+#' @param values Either a numeric vector, a numeric matrix or a dataframe with only numeric columns.\cr
+#' If a vector is given, it corresponds to one bar (group of bar segments and, optionally, value labels).\cr
+#' If a matrix or dataframe is given, rows define the value set for several (stacked) bars grouped together.
 #' @param reference Reference category (=column number of values). Bar segments up to this category lie to the left (horizontal) or to the bottom (vertical), bar segments above this category lie to the right (horizontal) or the top (vertical) of the bar chart.
 #' @param nullvalue Value that defines the "center" of the bar segments (for left/right or bottom/top positioning)
-#' @param alignment Ausrichtung der Balken. Entweder "horizontal" (default) oder "vertical"
-#' @param has_labels Sollen Wertelabels angezeigt werden? (Default TRUE)
-#' @param label_position Position der Wertelabels (Default "center")
-#' @param decimals Anzahl der Dezimalstellen der Wertelabels (Default 0)
-#' @param display_limits Interval for (small) values, that lead to suppression of the corresponding value labels. If only one value x is given, it is turned into the interval c(-x,x). (Default 0 = no suppression) 
-#' @return adaptiertes SVG als XML document
+#' @param alignment Character value. Accepts 'horizontal' (default) or 'vertical'. See details.
+#' @param has_labels Are there value labels (of XML type 'text') to adjust? (default TRUE)
+#' @param label_position Character value. Accepts 'start', 'center' (default) and 'end'. This refers to the underlying bar segments.
+#' @param decimals Integer value defining the number of decimal digits of value labels (default 0).
+#' @param display_limits Interval for (small) values, that lead to suppression of the corresponding value labels. If only one value x is given, it is turned into the interval c(-x,x). (default 0 = no suppression) 
+#' @return XML document with SVG content
+#' @details See \code{\link{stackedBar}}.
 #' @export
-referenceBar <- function(svg, frame_name, group_name, scale_real, values, reference, nullvalue=0, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limits = 0)
-{
+referenceBar <- function(svg, frame_name, group_name, scale_real, values, reference, nullvalue=0, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limits = 0) {
   if (nullvalue < min(scale_real) || nullvalue > max(scale_real)) stop("Error: nullvalue has to be in [min(scale_real),max(scale_real)].")
   if (is.numeric(values))
   {
@@ -606,24 +618,26 @@ referenceBar <- function(svg, frame_name, group_name, scale_real, values, refere
                     offset = offset))
 }
 
-#' Passt Differenzbalkendiagramm an
-#' 
-#' @description Passt ein in der SVG-Datei vorgefertigtes Differenzbalkendiagramm horizontal oder vertikal an. Vorbereitung: Balkensegmente und Wertelabels sind im SVG zu gruppieren. Mehrere solche Gruppen (Balken) können wiederum gruppiert werden. Die äußerste Gruppe ist zu benennen.
-#' @param svg SVG als XML document
-#' @param frame_name Name des Rechtseck-Elements mit dem Rahmen des Diagrammbereichs
-#' @param group_name Name der Gruppe mit den Balkenelementen bzw. mehreren Balken
-#' @param scale_real Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))
-#' @param values Dataframe mit den Werten, eine Zeile pro Balken
+#' Adjust bar chart where bars lie to the left/right or bottom/top of a given nullvalue
+#' @description Adjusts the horizontal (XML attribute 'x') or vertical (XML attribute 'y') position as well as width/height of bar segments (XML elements of type 'rect') and optionally value labels (XML elements of type 'text'). Positions are calculated relative to a given frame (XML element of type 'rect'), a nullvalue and the position of a data value within the minimum and maximum of a given scale. Bar segments and, optionally, value labels with values lower than the nullvalue are positioned to the left (in horizontal alignment) or to the bottom (in vertical alignment) of the scaled nullvalue, higher values on the opposite side.\cr
+#' For further description see \code{\link{stackedBar}}.
+#' @param svg XML document with SVG content
+#' @param frame_name Name (attribute 'id') of frame (XML element 'rect') for positioning bar segments (and value labels).
+#' @param group_name Name (attribute 'id') of group (XML element 'g') containing either bar segments (and value labels) or further groups, containing bar segments (and value labels) themselves.
+#' @param scale_real Numeric vector (e.g. \code{c(0,100)}) of arbitrary length. Only minimum and maximum are used for scaling of values.
+#' @param values Either a numeric vector, a numeric matrix or a dataframe with only numeric columns.\cr
+#' If a vector is given, it corresponds to one bar (group of bar segments and, optionally, value labels).\cr
+#' If a matrix or dataframe is given, rows define the value set for several (stacked) bars grouped together.
 #' @param nullvalue Value that defines the "center" of the bar segments (for left/right or bottom/top positioning)
-#' @param alignment Ausrichtung der Balken. Entweder "horizontal" (default) oder "vertical"
-#' @param has_labels Sollen Wertelabels angezeigt werden? (Default TRUE)
-#' @param label_position Position der Wertelabels (Default "center")
-#' @param decimals Anzahl der Dezimalstellen der Wertelabels (Default 0)
-#' @param display_limits Zwischen welchen Werten (Minimum und Maximum) rund um Null sollen Wertelabels unterdrückt werden? (Default c(0,0) = keine unterdrückten Werte)
-#' @return adaptiertes SVG als XML document
+#' @param alignment Character value. Accepts 'horizontal' (default) or 'vertical'. See details.
+#' @param has_labels Are there value labels (of XML type 'text') to adjust? (default TRUE)
+#' @param label_position Character value. Accepts 'start', 'center' (default) and 'end'. This refers to the underlying bar segments.
+#' @param decimals Integer value defining the number of decimal digits of value labels (default 0).
+#' @param display_limits Interval for (small) values, that lead to suppression of the corresponding value labels. If only one value x is given, it is turned into the interval c(-x,x). (default 0 = no suppression) 
+#' @return XML document with SVG content
+#' @details See \code{\link{stackedBar}}.
 #' @export
-diffBar <- function(svg, frame_name, group_name, scale_real, values, nullvalue=0, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limits = c(0,0)) 
-{
+diffBar <- function(svg, frame_name, group_name, scale_real, values, nullvalue=0, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limits = c(0,0)) {
   if (nullvalue < min(scale_real) || nullvalue > max(scale_real)) stop("Error: nullvalue has to be in [min(scale_real),max(scale_real)].")
   if (is.numeric(values))
   {
@@ -651,18 +665,23 @@ diffBar <- function(svg, frame_name, group_name, scale_real, values, nullvalue=0
                     offset = offset))
 }
 
-#' Bar chart representing percentiles
-#' 
-#' @param svg SVG als XML document
-#' @param frame_name Name des Rechtseck-Elements mit dem Rahmen des Diagrammbereichs
-#' @param group_name Name der Gruppe mit den Balkenelementen bzw. mehreren Balken
-#' @param scale_real Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))
-#' @param values Vector or dataframe with percentile values
-#' @param alignment Ausrichtung der Balken. Entweder "horizontal" (default) oder "vertical"
-#' @return adaptiertes SVG als XML document
+#' Adjust (stacked) bar chart representing percentiles
+#' @description Adjusts the horizontal (XML attribute 'x') or vertical (XML attribute 'y') position as well as width/height of bar segments (XML elements of type 'rect') and optionally value labels (XML elements of type 'text'). First, values are ordered and transformed to differences between percentiles, providing a starting point and widths/heights for bar segments. Then, positions are calculated relative to a given frame (XML element of type 'rect') and the position of a value within the minimum and maximum of a given scale.\cr
+#' No value labels are possible for this type of bar chart.\cr
+#' For further description see \code{\link{stackedBar}}.
+#' @param svg XML document with SVG content
+#' @param frame_name Name (attribute 'id') of frame (XML element 'rect') for positioning bar segments.
+#' @param group_name Name (attribute 'id') of group (XML element 'g') containing either bar segments or further groups, containing bar segments themselves.
+#' @param scale_real Numeric vector (e.g. \code{c(0,100)}) of arbitrary length. Only minimum and maximum are used for scaling of values.
+#' @param values Either a numeric vector, a numeric matrix or a dataframe with only numeric columns.\cr
+#' If a vector is given, it corresponds to one bar (group of bar segments).\cr
+#' If a matrix or dataframe is given, rows define the value set for several (stacked) bars grouped together.
+#' @param alignment Character value. Accepts 'horizontal' (default) or 'vertical'. See details.
+#' @return XML document with SVG content
+#' @details In contrast to \code{\link{stackedBar}} the value set(s) need(s) to have one more element than bar segments in each group.\cr
+#' For everything else, see \code{\link{stackedBar}}.
 #' @export
-percentileBar <- function(svg, frame_name, group_name, scale_real, values, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limits = c(0,0)) 
-{
+percentileBar <- function(svg, frame_name, group_name, scale_real, values, alignment = "horizontal") {
   if (is.numeric(values))
   {
     if (length(values)<2) stop("Error: at least two values are needed for percentile bars.")
@@ -699,9 +718,20 @@ linesSymbols_in <- function (svg_in, group_name) {
   
   named_groups <- xml2::xml_find_all(svg_in, "/svg/g")
   index_group <- which(xml2::xml_attr(named_groups, "id") == group_name)
-  if (length(index_group) != 1) {stop("Fehler: Gruppenname nicht gefunden bzw. nicht eindeutig.")}
+  if (length(index_group) != 1)
+  {
+    groups <- xml2::xml_find_all(svg_in, "/svg/g")
+    groups_av <- character()
+    for (group in groups)
+    {
+      if (xml2::xml_has_attr(group, "id"))
+      {
+        groups_av <- c(groups_av, xml2::xml_attr(group, "id"))
+      }
+    }
+    stop(paste0("Error: Group not found or more than one groups with the same name. Available groups:", paste(groups_av, collapse=", ")))
+  }
   lineGroup <- named_groups[index_group]
-  
 }
 
 linesSymbols_duplicate_lines <- function (lineGroup, alignment, number) {
@@ -871,7 +901,7 @@ linesSymbols_edit_polygons <- function (svg_in, group, frame_info, value_set, al
       }
     } else if (length(polygons_inGroup)==2)
     {
-      warning("Nur zwei Polygone in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibender Abstaende (und gleicher Form).")
+      warning("Warning: Only two polygon-elements in group. Duplicating with assumption of fixed shape and constant distances.")
       points1 <- get_polygon_coords(polygons_inGroup[1])
       points2 <- get_polygon_coords(polygons_inGroup[2])
       diff_x <- abs(points1[1,1]-points2[1,1])
@@ -896,7 +926,7 @@ linesSymbols_edit_polygons <- function (svg_in, group, frame_info, value_set, al
       }
     } else if (length(polygons_inGroup)==1 && length(xml2::xml_find_all(group, "./line"))>0)
     {
-      warning("Nur ein Polygon in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibender Abstaende von der Linie her.")
+      warning("Warning: Only one polygon-element in group. Duplicating with assumption of fixed shape and constant distances (depending on the line-element).")
       line <- xml2::xml_find_first(group, "./line")
       height <- abs(as.numeric(xml2::xml_attr(line, "y1")) - as.numeric(xml2::xml_attr(line, "y2")))
       width <- abs(as.numeric(xml2::xml_attr(line, "x1")) - as.numeric(xml2::xml_attr(line, "x2")))
@@ -910,7 +940,7 @@ linesSymbols_edit_polygons <- function (svg_in, group, frame_info, value_set, al
         if (alignment == "horizontal") newpoints[,2] <- (newpoints[,2]+(ee-1)*height)
         set_polygon_coords(newpolygon,newpoints)
       }
-    } else stop(paste0("Falsche Anzahl Polygonelemente in der Gruppe (",length(polygons_inGroup)," vorhanden, ",length(value_set)," erwartet)."))
+    } else stop(paste0("Error: Wrong number of polygon-elements in group (",length(polygons_inGroup)," polygons, ",length(value_set)," expected)."))
     polygons_inGroup <- xml2::xml_find_all(group, "./polygon")
   }
   
@@ -978,7 +1008,7 @@ linesSymbols_info_linegroups <- function (linegroups_inGroup) {
     min_x <- min_y <- Inf
     max_x <- max_y <- -Inf
     lines <- xml2::xml_find_all(linegroups_inGroup[pp], "./line")
-    if (length(lines)==0) stop("Liniengruppe ohne Linienelemente gefunden.")
+    if (length(lines)==0) stop("Error: Group without line-elements found.")
     dat_linegroups[pp,]$num_lines <- length(lines)
     for (qq in 1:length(lines))
     {
@@ -1045,7 +1075,7 @@ linesSymbols_edit_linegroups <- function (svg_in, group, frame_info, value_set, 
       }
     } else if (length(linegroups_inGroup)==2)
     {
-      warning("Nur zwei Gruppen mit Linienelementen in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibender Abstaende (und gleicher Form).")
+      warning("Warning: Only two linegroups in group. Duplicating with assumption of fixed shape and constant distances.")
       line1 <- xml2::xml_find_first(linegroups_inGroup[1],"./line")[[1]]
       line2 <- xml2::xml_find_first(linegroups_inGroup[2],"./line")[[1]]
       height <- abs(as.numeric(xml2::xml_attr(line1, "y1")) - as.numeric(xml2::xml_attr(line2, "y1")))
@@ -1084,7 +1114,7 @@ linesSymbols_edit_linegroups <- function (svg_in, group, frame_info, value_set, 
       }
     } else if (length(linegroups_inGroup)==1 && length(xml2::xml_find_all(group, "./line"))>0)
     {
-      warning("Nur eine Gruppe mit Linienelementen in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibender Abstaende von der Linie her.")
+      warning("Warning: Only one linegroup in group. Duplicating with assumption of fixed shape and constant distances (depending on the line-element of the outer group).")
       line <- xml2::xml_find_first(group, "./line")
       height <- abs(as.numeric(xml2::xml_attr(line, "y1")) - as.numeric(xml2::xml_attr(line, "y2")))
       width <- abs(as.numeric(xml2::xml_attr(line, "x1")) - as.numeric(xml2::xml_attr(line, "x2")))
@@ -1111,7 +1141,7 @@ linesSymbols_edit_linegroups <- function (svg_in, group, frame_info, value_set, 
           }
         }
       }
-    } else stop(paste0("Falsche Anzahl Gruppen mit Linienelementen in der Gruppe (",length(linegroups_inGroup)," vorhanden, ",length(value_set)," erwartet)."))
+    } else stop(paste0("Error: Wrong number of linegroups in group (",length(linegroups_inGroup)," linegroups, ",length(value_set)," expected)."))
     linegroups_inGroup <- xml2::xml_find_all(group, "./g")
   }
   
@@ -1195,7 +1225,7 @@ linesSymbols_edit_circles <- function (svg, group, frame_info, value_set, alignm
       }
     } else if (length(symbols_inGroup)==2)
     {
-      warning("Nur zwei Kreise in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibender Abstaende.")
+      warning("Warning: Only two circle elements in group. Duplicating with assumption of fixed shape and constant distances.")
       x <- as.numeric(xml2::xml_attr(symbols_inGroup, "cx"))
       y <- as.numeric(xml2::xml_attr(symbols_inGroup, "cy"))
       firstcircle <- xml2::xml_find_first(group, "./circle")[[1]]
@@ -1207,7 +1237,7 @@ linesSymbols_edit_circles <- function (svg, group, frame_info, value_set, alignm
       }
     } else if (length(symbols_inGroup)==1 && length(xml2::xml_find_all(group, "./line"))>0)
     {
-      warning("Nur ein Kreis in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibender Abstaende von der Linie her.")
+      warning("Warning: Only one circle element in group. Duplicating with assumption of fixed shape and constant distances (depending on the line element).")
       x <- as.numeric(xml2::xml_attr(symbols_inGroup, "cx"))
       y <- as.numeric(xml2::xml_attr(symbols_inGroup, "cy"))
       line <- xml2::xml_find_first(group, "./line")
@@ -1220,7 +1250,7 @@ linesSymbols_edit_circles <- function (svg, group, frame_info, value_set, alignm
         if (alignment == "vertical") xml2::xml_set_attr(newcircle,"cx",x+(ee-1)*width)
         if (alignment == "horizontal") xml2::xml_set_attr(newcircle,"cy",y+(ee-1)*height)
       }
-    } else stop(paste0("Falsche Anzahl Kreiselemente in der Gruppe (",length(symbols_inGroup)," vorhanden, ",length(value_set)," erwartet)."))
+    } else stop(paste0("Error: Wrong number of circle elements in group (",length(symbols_inGroup)," circles, ",length(value_set)," expected)."))
     symbols_inGroup <- xml2::xml_find_all(group, "./circle")
   }
   
@@ -1289,7 +1319,7 @@ linesSymbols_edit_rects <- function (svg, group, frame_info, value_set, alignmen
       }
     } else if (length(symbols_inGroup)==2)
     {
-      warning("Nur zwei Rechtecke in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibender Abstaende.")
+      warning("Warning: Only two rectangle elements in group. Duplicating with assumption of fixed shape and constant distances.")
       x <- as.numeric(xml2::xml_attr(symbols_inGroup, "x"))
       y <- as.numeric(xml2::xml_attr(symbols_inGroup, "y"))
       firstrect <- xml2::xml_find_first(group, "./rect")[[1]]
@@ -1301,7 +1331,7 @@ linesSymbols_edit_rects <- function (svg, group, frame_info, value_set, alignmen
       }
     } else if (length(symbols_inGroup)==1 && length(xml2::xml_find_all(group, "./line"))>0)
     {
-      warning("Nur ein Rechteck in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibende Abstaende von der Linie her.")
+      warning("Warning: Only two rectangle elements in group. Duplicating with assumption of fixed shape and constant distances (depending on the line element).")
       x <- as.numeric(xml2::xml_attr(symbols_inGroup, "x"))
       y <- as.numeric(xml2::xml_attr(symbols_inGroup, "y"))
       line <- xml2::xml_find_first(group, "./line")
@@ -1314,7 +1344,7 @@ linesSymbols_edit_rects <- function (svg, group, frame_info, value_set, alignmen
         if (alignment == "vertical") xml2::xml_set_attr(newrect,"x",x+(ee-1)*width)
         if (alignment == "horizontal") xml2::xml_set_attr(newrect,"y",y+(ee-1)*height)
       }
-    } else stop(paste0("Falsche Anzahl Rechteckelemente in der Gruppe (",length(symbols_inGroup)," vorhanden, ",length(value_set)," erwartet)."))
+    } else stop(paste0("Error: Wrong number of rectangle elements in group (",length(symbols_inGroup)," rectangles, ",length(value_set)," expected)."))
     symbols_inGroup <- xml2::xml_find_all(group, "./rect")
   }
   
@@ -1370,37 +1400,44 @@ linesSymbols_edit_rects <- function (svg, group, frame_info, value_set, alignmen
 }
 
 
-#' Passt Linien- und Symboldiagramme an
-#' 
-#' @description Passt die Symbole (und Lininen) in der SVG-Datei vorgefertigtes Symboldiagramm horizontal oder vertikal an. Vorbereitung: Linien und Symbolelemente (siehe Details) sind im SVG zu gruppieren. Die Gruppe ist zu benennen.
-#' @param svg SVG als XML document
-#' @param frame_name Name des Grafikrahmens.
-#' @param group_name Name der Gruppe mit den zu bearbeitenden Symbolen (und optional Verbindungslinien).
-#' @param scale_real Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100))
-#' @param values Dataframe bzw. Vektor mit den Werten
-#' @param alignment Ausrichtungsytyp der Symbole/Linien. Entweder "horizontal" (x-Werte anpassen) oder "vertical" (y-Werte anpassen) (Default: vertical).
-#' @param has_lines Sind Linien vorhanden? (Default = TRUE)
-#' @param symbol_type Typ der Symbolgruppe, die angepasst werden soll: c("circle","rect","polygon","linegroup"). (Default: NULL = nur Linie).
-#' @param ... Argumente fuer Subfunktionen
-#' @return adaptiertes SVG als XML document
-#' @details Die Linien- und Symbolelemente werden anhand ihrer x/y-Koordinaten von links nach rechts (aufsteigende x-Koordinate) bzw. oben nach unten (aufsteigende y-Koordinate) vorab sortiert und die Datenwerte entsprechend zugewiesen.\cr\cr
-#' Symboltyp "circle": Kreiselemente vom Typ "circle" im SVG. Passt die Attribute cx und cy an.\cr
-#' Symboltyp "rect": Rechteckelemente vom Typ "recht" im SVG. Passt die Attribute 
+#' Adjust line and/or symbol charts
+#' @description Adjusts the horizontal (XML attributes 'x', 'x1', 'x2', 'cx' etc.) or vertical (XML attributes 'y', 'y1', 'y2', 'cy' etc.) position of lines (XML elements of type 'line') and/or symbols (see details). Positions are calculated relative to a given frame (XML element of type 'rect') and the position of a data value within the minimum and maximum of a given scale. This process is called scaling.\cr
+#' In preparation, it is necessary to name a group (set attribute 'id' of XML element of type 'g') of lines and/or symbols.
+#' @param svg XML document with SVG content
+#' @param frame_name Name (attribute 'id') of frame (XML element 'rect') for positioning of elements.
+#' @param group_name Name (attribute 'id') of group (XML element 'g') with lines and/or symbols.
+#' @param scale_real Numeric vector (e.g. \code{c(0,100)}) of arbitrary length. Only minimum and maximum are used for scaling of values.
+#' @param values Numeric vector. If a dataframe or matrix is provided, only the first row will be used.
+#' @param alignment Character value. Accepts 'horizontal' or 'vertical' (default). See details.
+#' @param has_lines Are there lines? (default TRUE)
+#' @param symbol_type Character value. Accepts 'circle', 'rect', 'polygon' or 'linegroup'; see details. (default NULL = no symbols)
+#' @param ... Further arguments used internally by \code{\link{scatterSymbols}}.
+#' @return XML document with SVG content
+#' @details Note: 'Horizontal' alignment refers to adjustment of the x-coordinates of elements, 'vertical' alignment to adjustment of the y-coordinates. This is not to be confused with the orientation of the resulting polyline (and/or the sequence of symbols) that goes from left to right (with \code{alignment='vertical'}) or from top to bottom (with \code{alignment='horizontal'}).\cr
+#' Line elements and/or symbols may be grouped together in any order in the SVG file. The function will automatically use XML elements from left to right (with \code{alignment='vertical'}) or top to bottom (with \code{alignment='horizontal'}) according to their x/y-coordinates.\cr
+#' Line elements and/or symbols must be prepared in the SVG file in one of the following amounts: a) same amount as data values (or one element less in case of lines), b) one line and/or or two symbols or c) one line \emph{and} one symbol. In case of b) and c) the function will automatically duplicate line elements and/or symbols with the assumption of fixed shapes (that is, all lines and/or all symbols will look the same as the 'template' that is provided) and constant distance between the elements on the coordinate that will not be adjusted by \code{values} ('x' with \code{alignment='vertical'} or 'y' with \code{alignment='horizontal'}).\cr
+#' The function currently supports the following \code{symbol_type}s:
+#' \itemize{
+#' \item circle: XML elements of type 'circle'. Attributes 'cx' or 'cy' are adjusted.
+#' \item rect: XML elements of type 'rect'. Attributes 'x' or 'y' are adjusted.
+#' \item polygon: XML elements of type 'polygon'. Attribute 'points' is adjusted so that the centroid of the shape matches the scaled value position on the chart.
+#' \item linegroup: XML elements of type 'g' that contain elements of type 'line'. Attributes 'x1' and 'x2' or 'y1' and 'y2' of those lines are adjusted so that the mean x- or y-coordinate of all lines in the group matches the scaled value position on the chart.
+#' }
 #' @export
 linesSymbols <- function (svg, frame_name, group_name, scale_real, values, alignment = "vertical", has_lines = TRUE, symbol_type = NULL, ...) {
   
   # input check
   if (!is.null(symbol_type)) {
-    if (!symbol_type %in% c("circle","rect","polygon","linegroup")) { stop ("Ungueltiger Symboltyp (symbol_type).") }
+    if (!symbol_type %in% c("circle","rect","polygon","linegroup")) { stop("Error: Invalid symbol_type. Must be one of 'circle', 'rect', 'polygon', or 'linegroup'.") }
   }
-  if (!alignment %in% c("horizontal","vertical")) { stop ("Ungueltige Ausrichtungsart (alignment): 'horizontal' und 'vertical' erlaubt.") }
+  if (!alignment %in% c("horizontal","vertical")) { stop("Error: Alignment has to be either 'horizontal' or 'vertical'.") }
   # if input-values == data.frame: transform first row to vector
   if (is.data.frame(values))
   {
-    if (nrow(values)>1) warning("Dataframe mit mehr als einer Zeile uebergeben: Verwende nur erste Zeile.")
+    if (nrow(values)>1) warning("Warning: Value is a dataframe with several rows. Using only first row.")
     values <- as.numeric(values[1,])
   }
-  if (!is.numeric(values)) { stop ("Ungueltige Datenwerte (values): Nur numerische Werte erlaubt.") }
+  if (!is.numeric(values)) { stop("Error: Non-numerical values.") }
   
   # get frame info, scaling and group
   frame_info <- frame_and_scaling(svg, frame_name, scale_real)
@@ -1410,13 +1447,13 @@ linesSymbols <- function (svg, frame_name, group_name, scale_real, values, align
   if (has_lines)
   {
     lines_inGroup <- xml2::xml_find_all(group, "./line")
-    if (length(lines_inGroup) == 0) { stop ("Keine Linienelemente in der Gruppe vorhanden.") }
+    if (length(lines_inGroup) == 0) { stop("Error: No elements of type line in group.") }
     if (length(lines_inGroup) == 1 && length(values)!=2)
     {
-      warning("Nur ein Linienelement in der Gruppe vorhanden. Dupliziere unter Annahme gleichbleibender Breite/Hoehe.")
+      warning("Warning: Only one line element in group. Duplicating with assumption of fixed shape and constant distances.")
       lines_inGroup <- linesSymbols_duplicate_lines(group, alignment, length(values)-1)
     }
-    if (length(lines_inGroup) != length(values)-1) { stop(paste0("Falsche Anzahl Linienelemente in der Gruppe (",length(lines_inGroup)," vorhanden, ",(length(values)-1)," erwartet).")) }
+    if (length(lines_inGroup) != length(values)-1) { stop(paste0("Error: wrong number of lines in group (",length(lines_inGroup)," lines, ",(length(values)-1)," expected).")) }
     order_lines <- linesSymbols_order_lines(lines_inGroup, alignment)
     linesSymbols_edit_lines(lines_inGroup, order_lines, frame_info, values, alignment)
   }
@@ -1438,26 +1475,33 @@ linesSymbols <- function (svg, frame_name, group_name, scale_real, values, align
 
 ### STREUDIAGRAMM ----
 
-#' Passt Streudiagramme an
-#' 
-#' @description Vervielfaeltigt und passt ein in der SVG-Datei vorgefertigtes Symbol horizontal und vertikal an. Vorbereitung: Einzelnes Symbol ist in SVG zu gruppieren. Die Gruppe ist zu benennen.
-#' @param svg SVG als XML document
-#' @param frame_name Name des Grafikrahmens.
-#' @param group_name Name der Gruppe mit der Symbolvorlage
-#' @param scale_real_x Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100)) auf der x-Achse
-#' @param scale_real_y Unter- und Obergrenze des dargestellten Wertebereichs (bspw. c(0,100)) auf der y-Achse
-#' @param values Dataframe bzw. Matrix mit den Werten, erste Spalte fuer X und zweite Spalte fuer Y
-#' @param symbol_type Typ der Symbolgruppe, die angepasst werden soll: c("circle","rect","polygon","linegroup")
-#' @return adaptiertes SVG als XML document
+#' Adjust symbols of a scatter plot
+#' @description Adjusts the horizontal (XML attributes 'x', 'x1', 'x2', 'cx' etc.) and vertical (XML attributes 'y', 'y1', 'y2', 'cy' etc.) positions of symbols (see details). Positions are calculated relative to a given frame (XML element of type 'rect') and the position of a data value within the minimum and maximum of two given scales for x- and y-axis. This process is called scaling.\cr
+#' In preparation, it is necessary to name a group (set attribute 'id' of XML element of type 'g') of symbols. Symbols are automatically duplicated or removed to match the amount of data values.
+#' @param svg XML document with SVG content
+#' @param frame_name Name (attribute 'id') of frame (XML element 'rect') for positioning of elements.
+#' @param group_name Name (attribute 'id') of group (XML element 'g') with symbols.
+#' @param scale_real_x Numeric vector (e.g. \code{c(0,100)}) of arbitrary length for x-axis. Only minimum and maximum are used for scaling of values.
+#' @param scale_real_y Numeric vector (e.g. \code{c(0,100)}) of arbitrary length for y-axis. Only minimum and maximum are used for scaling of values.
+#' @param values Dataframe or matrix with numeric vectors. First column corresponds to x-axis. Second column corresponds to y-axis.
+#' @param symbol_type Character value. Accepts 'circle', 'rect', 'polygon' or 'linegroup'; see details.
+#' @return XML document with SVG content
+#' @details Symbols may be prepared in the SVG file in any amount. But be aware that the function will simply duplicate the first one (in the group) or remove the last ones to match the amount of data values. When, for example, you need to have different colors for different subgroups of cases, prepare several groups of symbols and call this function for each of them.\cr
+#' The function currently supports the following \code{symbol_type}s:
+#' \itemize{
+#' \item circle: XML elements of type 'circle'. Attributes 'cx' and 'cy' are adjusted.
+#' \item rect: XML elements of type 'rect'. Attributes 'x' and 'y' are adjusted.
+#' \item polygon: XML elements of type 'polygon'. Attribute 'points' is adjusted so that the centroid of the shape matches the scaled value positions on the chart.
+#' \item linegroup: XML elements of type 'g' that contain elements of type 'line'. Attributes 'x1', 'x2', 'y1' and 'y2' of those lines are adjusted so that the mean x- and y-coordinate of all lines in the group matches the scaled value positions on the chart.
+#' }
 #' @export
-scatterSymbols <- function(svg, frame_name, group_name, scale_real_x, scale_real_y, values, symbol_type)
-{
+scatterSymbols <- function(svg, frame_name, group_name, scale_real_x, scale_real_y, values, symbol_type) {
   # input check
   if (!is.null(symbol_type)) {
-    if (!symbol_type %in% c("circle","rect","polygon","linegroup")) { stop ("Ungueltiger Symboltyp (symbol_type).") }
+    if (!symbol_type %in% c("circle","rect","polygon","linegroup")) { stop("Error: Invalid symbol_type. Must be one of 'circle', 'rect', 'polygon', or 'linegroup'.") }
   }
-  if (length(dim(values))!=2) stop("Falsches Eingabeformat der Datenwerte (values). Erwarte 2-dimensionales Objekt (dataframe, matrix) mit x-Werten in erster und y-Werten in zweiter Spalte")
-  if (!is.numeric(values[,1]) || !is.numeric(values[,2])) { stop ("Ungueltige Datenwerte (values): Nur numerische Werte erlaubt.") }
+  if (length(dim(values))!=2) stop("Error: Wrong object for argument values. Expecting 2-dimensional object (dataframe, matrix) with two columns.")
+  if (!is.numeric(values[,1]) || !is.numeric(values[,2])) { stop("Error: Non-numerical values.") }
   # Anpassung mittels linesSymbols
   svg <- linesSymbols(svg = svg,frame_name = frame_name,group_name = group_name,scale_real = scale_real_x,values = values[,1],alignment = "horizontal",has_lines = FALSE,symbol_type = symbol_type,scatter = TRUE)
   svg <- linesSymbols(svg = svg,frame_name = frame_name,group_name = group_name,scale_real = scale_real_y,values = values[,2],alignment = "vertical",has_lines = FALSE,symbol_type = symbol_type,scatter = TRUE)
@@ -1481,7 +1525,7 @@ svg_setElementText <- function(svg, element_name, text_new, alignment = NULL, in
     check2 <- length(which(xml2::xml_attr(elements, "id") == element_name[element_nr])) == 0
     
     
-    if (check1 & check2) {stop (paste0("Kein Textelement mit der Bezeichnung ", element_name[element_nr], " gefunden."))}
+    if (check1 & check2) {stop(paste0("Error: No text element with id or text '", element_name[element_nr], "' was found."))}
     
     if (length(which(xml2::xml_text(elements) == element_name[element_nr])) == 0) {
       # edit text
@@ -1517,16 +1561,15 @@ svg_setElementText <- function(svg, element_name, text_new, alignment = NULL, in
   return(svg)
 }
 
-#' Ersetzt Text in Textelement
-#' 
-#' @description Passt ein in der SVG-Datei vorhandenes Textelement an. Kann entweder via Textinhalt selbst oder via Benennung des Textelements angewendet werden.
-#' @param svg SVG als XML document
-#' @param element_name Name des Textelements bzw. Textinhalt des Textelements, wenn dieses nicht gesondert beschriftet ist.
-#' @param text Text der eingetragen werden soll.
-#' @param alignment Textausrichtung. Moegliche Parameter: start, middle, end. (Default NULL)
-#' @param in_group In welcher Gruppe befindet sich das Textelement (Default NULL).
-#' @param hide_blank Soll Textelement versteckt werden, wenn es leer ist? (Default FALSE)
-#' @return adaptiertes SVG als XML document
+#' Change text of text elements
+#' @description Changes the text entry of XML element of type 'text'. The XML element may be found by its name (XML attribute 'id') or based on its current text entry.
+#' @param svg XML document with SVG content
+#' @param element_name Name (attribute 'id') of text (XML element 'text') or current text entry of text (XML element 'text').
+#' @param text New text entry.
+#' @param alignment Character value for text alignment. Accepts 'start', 'middle', and 'end' (default NULL = no change).
+#' @param in_group Name (attribute 'id') of group (XML element 'g') that contains the text element (default NULL = no group, search the entire SVG).
+#' @param hide_blank Should text elements with empty strings be hidden (set attribute 'display' to 'none')? (default FALSE)
+#' @return XML document with SVG content
 #' @export
 changeText <- function(svg, element_name, text, alignment = NULL, in_group = NULL, hide_blank = FALSE) {
   return(svg_setElementText(svg = svg,element_name = element_name,text_new = text,alignment = alignment,inGroup = in_group, hide_blank = hide_blank))

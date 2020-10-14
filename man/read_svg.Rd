@@ -2,22 +2,22 @@
 % Please edit documentation in R/svgtools.R
 \name{read_svg}
 \alias{read_svg}
-\title{Liest eine SVG-Datei ein}
+\title{Read SVG file and return XML document}
 \usage{
 read_svg(file, enc = "UTF-8", summary = FALSE, display = FALSE)
 }
 \arguments{
-\item{file}{Dateiname (inkl. Pfad)}
+\item{file}{A string, a connection, or a raw vector. See \code{\link{xml2::read_xml}}.}
 
-\item{enc}{Encoding (default: "UTF-8")}
+\item{enc}{Encoding (default 'UTF-8').}
 
-\item{summary}{Soll Zusammenfassung ueber SVG-File (Anzahl Gruppen, verwendete Farben...) angezeigt werden? (default: FALSE)}
+\item{summary}{Show summary of SVG file (\code{\link{summary_svg}})? (default FALSE)}
 
-\item{display}{Soll eingelesenes SVG (bspw. im R-Studio Viewer) angezeigt werden? (default: FALSE)}
+\item{display}{Display SVG on standard display port (\code{\link{display_svg}})? (default FALSE)}
 }
 \value{
-SVG als XML document
+XML document with SVG content
 }
 \description{
-Liest eine SVG-Datei ein
+Read SVG file and return XML document
 }

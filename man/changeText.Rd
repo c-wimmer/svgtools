@@ -2,7 +2,7 @@
 % Please edit documentation in R/svgtools.R
 \name{changeText}
 \alias{changeText}
-\title{Ersetzt Text in Textelement}
+\title{Change text of text elements}
 \usage{
 changeText(
   svg,
@@ -14,21 +14,21 @@ changeText(
 )
 }
 \arguments{
-\item{svg}{SVG als XML document}
+\item{svg}{XML document with SVG content}
 
-\item{element_name}{Name des Textelements bzw. Textinhalt des Textelements, wenn dieses nicht gesondert beschriftet ist.}
+\item{element_name}{Name (attribute 'id') of text (XML element 'text') or current text entry of text (XML element 'text').}
 
-\item{text}{Text der eingetragen werden soll.}
+\item{text}{New text entry.}
 
-\item{alignment}{Textausrichtung. Moegliche Parameter: start, middle, end. (Default NULL)}
+\item{alignment}{Character value for text alignment. Accepts 'start', 'middle', and 'end' (default NULL = no change).}
 
-\item{in_group}{In welcher Gruppe befindet sich das Textelement (Default NULL).}
+\item{in_group}{Name (attribute 'id') of group (XML element 'g') that contains the text element (default NULL = no group, search the entire SVG).}
 
-\item{hide_blank}{Soll Textelement versteckt werden, wenn es leer ist? (Default FALSE)}
+\item{hide_blank}{Should text elements with empty strings be hidden (set attribute 'display' to 'none')? (default FALSE)}
 }
 \value{
-adaptiertes SVG als XML document
+XML document with SVG content
 }
 \description{
-Passt ein in der SVG-Datei vorhandenes Textelement an. Kann entweder via Textinhalt selbst oder via Benennung des Textelements angewendet werden.
+Changes the text entry of XML element of type 'text'. The XML element may be found by its name (XML attribute 'id') or based on its current text entry.
 }
