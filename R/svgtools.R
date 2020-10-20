@@ -67,9 +67,8 @@ summary_svg <- function(svg) {
   
   # Used Fonts
   print("-- USED FONTS:")
-  svg_all_elements <- xml2::xml_contents(svg)
-  text_elements <- xml2::xml_find_all(svg_all_elements, "text")
-  used_fonts <- NULL
+  text_elements <- xml2::xml_find_all(svg, "text")
+  used_fonts <- character()
   for (font in text_elements) {
     used_fonts <- c(used_fonts, xml2::xml_attr(font, "font-family"))
   }
@@ -77,7 +76,7 @@ summary_svg <- function(svg) {
   
   # Used Font Sizes
   print("-- USED FONT SIZES:")
-  used_sizes <- NULL
+  used_sizes <- character()
   for (size in text_elements) {
     used_sizes <- c(used_sizes, xml2::xml_attr(font, "font-size"))
   }
@@ -85,9 +84,9 @@ summary_svg <- function(svg) {
   
   # Colors
   print("-- USED COLORS:")
-  line_elements <- xml2::xml_find_all(svg_all_elements, "line")
-  rect_elements <- xml2::xml_find_all(svg_all_elements, "rect")
-  used_colors <- NULL
+  line_elements <- xml2::xml_find_all(svg, "line")
+  rect_elements <- xml2::xml_find_all(svg, "rect")
+  used_colors <- character()
   for (col in text_elements) {
     used_colors <- c(used_colors, xml2::xml_attr(xml2::xml_children(col), "fill"))
   }
@@ -314,7 +313,7 @@ stackedBar_order_groups <- function(stackedBarGroup, n_subgroups) {
   
   rects_value_y <- rects_value_x <- NULL
   
-  if (!n_subgroups == 1) {
+  if (n_subgroups > 1) {
     
     for (n_children in 1:length(xml2::xml_find_all(stackedBarGroup,"./g"))) {
       
@@ -456,12 +455,22 @@ stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, orde
       set_text_coords(text_toChange,x=text_pos,y=coords$y,xyattr=coords$xyattr)
       xml2::xml_set_attr(text_toChange, "text-anchor", "middle")
     } else {
-      if (labelPosition == "center") text_pos <- rectinfo_pos_y + (rectinfo_pos_height/2)
-      if (labelPosition == "start") text_pos <- ifelse (value_set[rr] >= 0, rectinfo_pos_y + rectinfo_pos_height - 10, rectinfo_pos_y + 10)
-      if (labelPosition == "end") text_pos <- ifelse (value_set[rr] >= 0, rectinfo_pos_y + 10, rectinfo_pos_y + rectinfo_pos_height - 10)
+      if (labelPosition == "center")
+      {
+        xml2::xml_set_attr(text_toChange, "dy", ".5em")
+        text_pos <- rectinfo_pos_y + (rectinfo_pos_height/2)
+      }
+      if ((labelPosition == "start" && value_set[rr] >= 0) || (labelPosition == "end" && value_set[rr] < 0))
+      {
+        xml2::xml_set_attr(text_toChange, "dy", NULL)
+        text_pos <- rectinfo_pos_y + rectinfo_pos_height - 10
+      }
+      if ((labelPosition == "end" && value_set[rr] >= 0) || (labelPosition == "start" && value_set[rr] < 0))
+      {
+        xml2::xml_set_attr(text_toChange, "dy", "1em")
+        text_pos <- rectinfo_pos_y + 10
+      }
       set_text_coords(text_toChange,x=coords$x,y=text_pos,xyattr=coords$xyattr)
-      xml2::xml_set_attr(text_toChange, "text-anchor", "start")
-      xml2::xml_set_attr(text_toChange, "dominant-baseline", "mathematical")
     }
   }
 
@@ -529,7 +538,11 @@ stackedBar <- function(svg, frame_name, group_name, scale_real, values, alignmen
     
     ## - RECTS
     # get: barSet, rects of barSet, right ordering
-    if (length(xml2::xml_find_all(stackedBarGroup, "./g"))!=0) barSet <- xml2::xml_find_all(stackedBarGroup, "./g")[stackedBars_order_y[bar_nr]]
+    if (length(xml2::xml_find_all(stackedBarGroup, "./g"))!=0)
+    { 
+      if (alignment=="horizontal") barSet <- xml2::xml_find_all(stackedBarGroup, "./g")[stackedBars_order_y[bar_nr]]
+      if (alignment=="vertical") barSet <- xml2::xml_find_all(stackedBarGroup, "./g")[stackedBars_order_x[bar_nr]]
+    }
     if (length(xml2::xml_find_all(stackedBarGroup, "./g"))==0) barSet <- stackedBarGroup #wenn es keine Untergruppen gibt, nimm direkt die übergebene Gruppe
     
     rects <- xml2::xml_find_all(barSet, "./rect")
