@@ -4,3 +4,4 @@
 ^\.Rprofile$
 ^\R\archiv
 ^\vignettes
+^\tests

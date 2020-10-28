@@ -143,7 +143,7 @@ write_svg <- function(svg, file, remove_hidden = TRUE, flatten = FALSE) {
       children <- xml2::xml_find_all(group,"./*") 
       if (length(children)>0)
       {
-        for (child in children) xml2::xml_add_sibling(group,child)
+        for (child in children) xml2::xml_add_sibling(group,child,.where="before")
       }
       xml2::xml_remove(group)
     }
@@ -267,6 +267,13 @@ set_polygon_coords <- function(polygon,coords) {
   points <- apply(coords,1,paste,collapse=",")
   points <- paste(points,collapse=" ")
   xml2::xml_set_attr(polygon,"points",points)
+}
+
+# converts NAs in a logical vector to FALSE
+na.as.false <- function(vect)
+{
+  vect[is.na(vect)] <- FALSE
+  return(vect)
 }
 
 ### BALKENDIAGRAMME ----
@@ -608,12 +615,11 @@ stackedBar <- function(svg, frame_name, group_name, scale_real, values, alignmen
 #' @export
 referenceBar <- function(svg, frame_name, group_name, scale_real, values, reference, nullvalue=0, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limits = 0) {
   if (nullvalue < min(scale_real) || nullvalue > max(scale_real)) stop("Error: nullvalue has to be in [min(scale_real),max(scale_real)].")
-  if (is.numeric(values))
+  if (length(dim(values))==1)
   {
     if (length(values)<reference) stop("Error: reference category not found, length of values too small.")
     offset <- nullvalue - min(scale_real) - sum(values[1:reference])
   } else {
-    if (!("data.frame" %in% class(values))) stop("Error: value has to be either a numeric vector or a dataframe.")
     if (ncol(values)<reference) stop("Error: reference category not found, number of columns too small.")
     offset <- rep(nullvalue - min(scale_real),nrow(values))
     offset <- offset - rowSums(values[,1:reference])
@@ -652,17 +658,16 @@ referenceBar <- function(svg, frame_name, group_name, scale_real, values, refere
 #' @export
 diffBar <- function(svg, frame_name, group_name, scale_real, values, nullvalue=0, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limits = c(0,0)) {
   if (nullvalue < min(scale_real) || nullvalue > max(scale_real)) stop("Error: nullvalue has to be in [min(scale_real),max(scale_real)].")
-  if (is.numeric(values))
+  if (length(dim(values))==1)
   {
     offset <- nullvalue - min(scale_real)
-    if (any(values<nullvalue)) offset <- offset - abs(sum(values[values<nullvalue]))
+    if (any(na.as.false(values<nullvalue))) offset <- offset - abs(sum(values[na.as.false(values<nullvalue)]))
   } else {
-    if (!("data.frame" %in% class(values))) stop("Error: value has to be either a numeric vector or a dataframe.")
     offset <- rep(nullvalue - min(scale_real),nrow(values))
     for (rr in 1:nrow(values))
     {
-      rowvalues <- values[rr,,drop=TRUE]
-      if (any(rowvalues<nullvalue)) offset[rr] <- offset[rr] - abs(sum(rowvalues[rowvalues<nullvalue]))
+      rowvalues <- as.vector(values[rr,])
+      if (any(na.as.false(rowvalues<nullvalue))) offset[rr] <- offset[rr] - abs(sum(rowvalues[na.as.false(rowvalues<nullvalue)]))
     }
   }
   return(stackedBar(svg = svg,

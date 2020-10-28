@@ -12,11 +12,11 @@
 <line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="226.771" y1="311.812" x2="226.771" y2="316.063"/>
 <line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="283.464" y1="311.812" x2="283.464" y2="316.063"/>
 <line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="340.157" y1="311.812" x2="340.157" y2="316.063"/>
-<rect x="374.173" y="85.117" fill="#C6C6C6" width="17.008" height="8.504"/>
+<rect x="374.173" y="85.117" fill="#3C3C3B" width="17.008" height="8.504"/>
 <text transform="matrix(1 0 0 1 394.0156 93.6211)" font-family="'ArialMT'" font-size="10">Category A</text>
 <rect x="374.173" y="102.124" fill="#878787" width="17.008" height="8.504"/>
 <text transform="matrix(1 0 0 1 394.0156 110.6284)" font-family="'ArialMT'" font-size="10">Category B</text>
-<rect x="374.173" y="119.129" fill="#3C3C3B" width="17.008" height="8.504"/>
+<rect x="374.173" y="119.129" fill="#C6C6C6" width="17.008" height="8.504"/>
 <text transform="matrix(1 0 0 1 394.0156 127.6348)" font-family="'ArialMT'" font-size="10">Category C</text>
 <line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="141.732" y1="85.04" x2="137.48" y2="85.04"/>
 <line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="141.732" y1="113.386" x2="137.48" y2="113.386"/>
@@ -37,7 +37,7 @@
 <text transform="matrix(1 0 0 1 116.5439 144.3984)" font-family="'ArialMT'" font-size="10">120</text>
 <text transform="matrix(1 0 0 1 116.5439 116.0518)" font-family="'ArialMT'" font-size="10">140</text>
 <text transform="matrix(1 0 0 1 116.5439 87.7051)" font-family="'ArialMT'" font-size="10">160</text>
-<text transform="matrix(4.489659e-011 -1 1 4.489659e-011 110.4619 229.5532)" font-family="'ArialMT'" font-size="10">Some amount</text>
+<text transform="matrix(0 -1 1 0 110.4619 229.5532)" font-family="'ArialMT'" font-size="10">Some amount</text>
 <line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="198.425" y1="311.812" x2="198.425" y2="85.04"/>
 <g id="overall">
 	<rect x="156.746" y="255.119" fill="#3C3C3B" width="26.667" height="56.693"/>

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg" version="1.1" id="Ebene_1" x="0px" y="0px" width="841.89px" height="595.28px" viewBox="0 0 841.89 595.28" enable-background="new 0 0 841.89 595.28" xml:space="preserve">
+<text transform="matrix(1 0 0 1 169.4058 78.3081)" font-family="'ArialMT'" font-size="12">My bar chart aligned by reference category</text>
+<line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="141.732" y1="85.04" x2="133.229" y2="85.04"/>
+<line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="141.732" y1="113.386" x2="133.229" y2="113.386"/>
+<line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="141.732" y1="141.732" x2="133.229" y2="141.732"/>
+<line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="141.732" y1="170.078" x2="133.229" y2="170.078"/>
+<line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="141.732" y1="198.424" x2="133.229" y2="198.424"/>
+<line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="141.732" y1="226.771" x2="133.229" y2="226.771"/>
+<text transform="matrix(1 0 0 1 111.1094 101.8799)" font-family="'ArialMT'" font-size="10">Item 1</text>
+<text transform="matrix(1 0 0 1 111.1094 130.2261)" font-family="'ArialMT'" font-size="10">Item 2</text>
+<text transform="matrix(1 0 0 1 111.1094 158.5723)" font-family="'ArialMT'" font-size="10">Item 3</text>
+<text transform="matrix(1 0 0 1 111.1094 186.9185)" font-family="'ArialMT'" font-size="10">Item 4</text>
+<text transform="matrix(1 0 0 1 111.1094 215.2646)" font-family="'ArialMT'" font-size="10">Item 5</text>
+<line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="141.732" y1="226.772" x2="141.732" y2="231.024"/>
+<line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="170.079" y1="226.772" x2="170.079" y2="231.024"/>
+<line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="198.425" y1="226.772" x2="198.425" y2="231.024"/>
+<line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="226.771" y1="226.772" x2="226.771" y2="231.024"/>
+<line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="255.117" y1="226.772" x2="255.117" y2="231.024"/>
+<line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="283.463" y1="226.772" x2="283.463" y2="231.024"/>
+<line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="311.81" y1="226.772" x2="311.81" y2="231.024"/>
+<line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="340.156" y1="226.772" x2="340.156" y2="231.024"/>
+<line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="368.502" y1="226.772" x2="368.502" y2="231.024"/>
+<line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="396.848" y1="226.772" x2="396.848" y2="231.024"/>
+<line fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="425.194" y1="226.772" x2="425.194" y2="231.024"/>
+<text transform="matrix(1 0 0 1 133.3901 241.0225)" font-family="'ArialMT'" font-size="10">100</text>
+<text transform="matrix(1 0 0 1 164.5171 241.0225)" font-family="'ArialMT'" font-size="10">80</text>
+<text transform="matrix(1 0 0 1 192.8633 241.0225)" font-family="'ArialMT'" font-size="10">60</text>
+<text transform="matrix(1 0 0 1 221.2095 241.0225)" font-family="'ArialMT'" font-size="10">40</text>
+<text transform="matrix(1 0 0 1 249.5557 241.0225)" font-family="'ArialMT'" font-size="10">20</text>
+<text transform="matrix(1 0 0 1 280.6826 241.0225)" font-family="'ArialMT'" font-size="10">0</text>
+<text transform="matrix(1 0 0 1 306.248 241.0225)" font-family="'ArialMT'" font-size="10">20</text>
+<text transform="matrix(1 0 0 1 334.5942 241.0225)" font-family="'ArialMT'" font-size="10">40</text>
+<text transform="matrix(1 0 0 1 362.9404 241.0225)" font-family="'ArialMT'" font-size="10">60</text>
+<text transform="matrix(1 0 0 1 391.2866 241.0225)" font-family="'ArialMT'" font-size="10">80</text>
+<text transform="matrix(1 0 0 1 416.8521 241.0225)" font-family="'ArialMT'" font-size="10">100</text>
+<text transform="matrix(1 0 0 1 212.0459 258.521)" font-family="'ArialMT'" font-size="10">Disagreement/Agreement (in %)</text>
+<rect x="141.732" y="267.438" fill="#DADADA" width="17.008" height="8.504"/>
+<text transform="matrix(1 0 0 1 161.5747 275.9414)" font-family="'ArialMT'" font-size="10">I strongly disagree.</text>
+<rect x="283.464" y="267.438" fill="#B2B2B2" width="17.008" height="8.504"/>
+<text transform="matrix(1 0 0 1 303.3066 275.9414)" font-family="'ArialMT'" font-size="10">I (rather) disagree.</text>
+<rect x="141.732" y="281.61" fill="#706F6F" width="17.008" height="8.504"/>
+<text transform="matrix(1 0 0 1 161.5747 290.1143)" font-family="'ArialMT'" font-size="10">I (rather) agree.</text>
+<rect x="283.464" y="281.61" fill="#3C3C3B" width="17.008" height="8.504"/>
+<text transform="matrix(1 0 0 1 303.3066 290.1143)" font-family="'ArialMT'" font-size="10">I totally agree.</text>
+<g id="group">
+	<g>
+		<rect x="240.9444" y="92.126" fill="#DADADA" width="14.1732" height="14.173"/>
+		<rect x="255.1176" y="92.126" fill="#B2B2B2" width="28.3464" height="14.173"/>
+		<rect x="283.464" y="92.126" fill="#706F6F" width="42.5196" height="14.173"/>
+		
+		
+		
+		<rect x="325.9836" y="92.126" fill="#3C3C3B" width="56.6928" height="14.173"/>
+		
+	<text transform="matrix(1 0 0 1 248.031 101.8799)" font-family="'ArialMT'" font-size="10" text-anchor="middle">10</text><text transform="matrix(1 0 0 1 269.2908 101.8799)" font-family="'ArialMT'" font-size="10" text-anchor="middle">20</text><text transform="matrix(1 0 0 1 304.7238 101.8799)" fill="#FFFFFF" font-family="'ArialMT'" font-size="10" text-anchor="middle">30</text><text transform="matrix(1 0 0 1 354.33 101.8799)" fill="#FFFFFF" font-family="'ArialMT'" font-size="10" text-anchor="middle">40</text></g>
+	<g>
+		<rect x="212.598" y="120.473" fill="#DADADA" width="28.3464" height="14.173"/>
+		<rect x="240.9444" y="120.473" fill="#B2B2B2" width="42.5196" height="14.173"/>
+		<rect x="283.464" y="120.473" fill="#706F6F" width="56.6928" height="14.173"/>
+		
+		
+		
+		<rect x="340.1568" y="120.473" fill="#3C3C3B" width="14.1732" height="14.173"/>
+		
+	<text transform="matrix(1 0 0 1 226.7712 130.2266)" font-family="'ArialMT'" font-size="10" text-anchor="middle">20</text><text transform="matrix(1 0 0 1 262.2042 130.2266)" font-family="'ArialMT'" font-size="10" text-anchor="middle">30</text><text transform="matrix(1 0 0 1 311.8104 130.2266)" fill="#FFFFFF" font-family="'ArialMT'" font-size="10" text-anchor="middle">40</text><text transform="matrix(1 0 0 1 347.2434 130.2266)" fill="#FFFFFF" font-family="'ArialMT'" font-size="10" text-anchor="middle">10</text></g>
+	<g>
+		<rect x="184.2516" y="148.819" fill="#DADADA" width="42.5196" height="14.173"/>
+		<rect x="226.7712" y="148.819" fill="#B2B2B2" width="56.6928" height="14.173"/>
+		<rect x="283.464" y="148.819" fill="#706F6F" width="14.1732" height="14.173"/>
+		
+		
+		
+		<rect x="297.6372" y="148.819" fill="#3C3C3B" width="28.3464" height="14.173"/>
+		
+	<text transform="matrix(1 0 0 1 205.5114 158.5732)" font-family="'ArialMT'" font-size="10" text-anchor="middle">30</text><text transform="matrix(1 0 0 1 255.1176 158.5732)" font-family="'ArialMT'" font-size="10" text-anchor="middle">40</text><text transform="matrix(1 0 0 1 290.5506 158.5732)" fill="#FFFFFF" font-family="'ArialMT'" font-size="10" text-anchor="middle">10</text><text transform="matrix(1 0 0 1 311.8104 158.5732)" fill="#FFFFFF" font-family="'ArialMT'" font-size="10" text-anchor="middle">20</text></g>
+	<g>
+		<rect x="212.598" y="177.166" fill="#DADADA" width="56.6928" height="14.173"/>
+		<rect x="269.2908" y="177.166" fill="#B2B2B2" width="14.1732" height="14.173"/>
+		<rect x="283.464" y="177.166" fill="#706F6F" width="28.3464" height="14.173"/>
+		
+		
+		
+		<rect x="311.8104" y="177.166" fill="#3C3C3B" width="42.5196" height="14.173"/>
+		
+	<text transform="matrix(1 0 0 1 240.9444 186.9199)" font-family="'ArialMT'" font-size="10" text-anchor="middle">40</text><text transform="matrix(1 0 0 1 276.3774 186.9199)" font-family="'ArialMT'" font-size="10" text-anchor="middle">10</text><text transform="matrix(1 0 0 1 297.6372 186.9199)" fill="#FFFFFF" font-family="'ArialMT'" font-size="10" text-anchor="middle">20</text><text transform="matrix(1 0 0 1 333.0702 186.9199)" fill="#FFFFFF" font-family="'ArialMT'" font-size="10" text-anchor="middle">30</text></g>
+	<g>
+		<rect x="240.9444" y="205.513" fill="#DADADA" width="14.1732" height="14.173"/>
+		<rect x="255.1176" y="205.513" fill="#B2B2B2" width="28.3464" height="14.173"/>
+		<rect x="283.464" y="205.513" fill="#706F6F" width="42.5196" height="14.173"/>
+		
+		
+		
+		<rect x="325.9836" y="205.513" fill="#3C3C3B" width="56.6928" height="14.173"/>
+		
+	<text transform="matrix(1 0 0 1 248.031 215.2666)" font-family="'ArialMT'" font-size="10" text-anchor="middle">10</text><text transform="matrix(1 0 0 1 269.2908 215.2666)" font-family="'ArialMT'" font-size="10" text-anchor="middle">20</text><text transform="matrix(1 0 0 1 304.7238 215.2666)" fill="#FFFFFF" font-family="'ArialMT'" font-size="10" text-anchor="middle">30</text><text transform="matrix(1 0 0 1 354.33 215.2666)" fill="#FFFFFF" font-family="'ArialMT'" font-size="10" text-anchor="middle">40</text></g>
+</g>
+<rect id="frame" x="141.732" y="85.04" fill="none" stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" width="283.464" height="141.732"/>
+<line stroke="#000000" stroke-width="0.5" stroke-miterlimit="10" x1="283.464" y1="226.772" x2="283.464" y2="85.04"/>
+</svg>
