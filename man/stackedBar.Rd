@@ -57,3 +57,18 @@ Bar segments and, optionally, value labels may be grouped together in any order 
 Furthermore, the SVG file order of several bars grouped together in an outer group is irrelevant. The function will automatically use bars (that is, groups of bar segments and, optionally, value labels) from top to bottom (with \code{alignment='horizontal'}) or left to right (with \code{alignment='vertical'}) according to the lowest x/y-coordinate of any element.\cr
 Bar segments and value labels (if any) are automatically hidden (XML attribute 'diplay' is set to 'none'), when a value of 0 or NA is provided. Subsequent calls to the function with non-zero or non-NA values make such elements reappear in the output.
 }
+\examples{
+#read SVG file
+fpath <- system.file("extdata", "fig3.svg", package="svgtools")
+svg <- read_svg(file = fpath)
+
+#adjust bars
+svg <- stackedBar(svg = svg, frame_name = "frame", group_name = "overall",
+                  scale_real = c(0,160), values = c(9.97,42.42,105.71), 
+                  alignment = "vertical", has_labels = TRUE, 
+                  label_position = "end", decimals = 0, display_limits = 10)
+df.subgroups <- matrix(1:9*8, nrow=3)
+svg <- stackedBar(svg = svg, frame_name = "frame", group_name = "subgroups", 
+                  scale_real = c(0,160), values = df.subgroups, 
+                  alignment = "vertical", display_limits = 10)
+}

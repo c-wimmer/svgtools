@@ -53,3 +53,15 @@ For further description see \code{\link{stackedBar}}.
 \details{
 See \code{\link{stackedBar}}.
 }
+\examples{
+#read SVG file
+fpath <- system.file("extdata", "fig7.svg", package="svgtools")
+svg <- read_svg(file = fpath)
+
+#adjust bars
+df <- data.frame(diff_negative = c(NA,NA,-0.7,NA,-0.33), 
+                 diff_positive = c(0.4,0.55,NA,0.02,NA))
+svg <- diffBar(svg = svg, frame_name = "frame", group_name = "group", 
+               scale_real = c(-1,1), values = df, nullvalue = 0, 
+               label_position = "end", decimals = 1, display_limits = 0.1)
+}

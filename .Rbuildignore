@@ -1,7 +1,7 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-^\tests
 ^\.Rprofile$
-^\R\archiv
-^\vignettes
-^\tests
+archiv$
+^tests$
+^.*\.ai$
+^.*vignettes..*\.svg$

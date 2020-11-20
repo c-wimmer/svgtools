@@ -7,7 +7,7 @@
 read_svg(file, enc = "UTF-8", summary = FALSE, display = FALSE)
 }
 \arguments{
-\item{file}{A string, a connection, or a raw vector. See \code{\link{xml2::read_xml}}.}
+\item{file}{A string, a connection, or a raw vector. See \code{\link[xml2]{read_xml}}.}
 
 \item{enc}{Encoding (default 'UTF-8').}
 
@@ -20,4 +20,8 @@ XML document with SVG content
 }
 \description{
 Read SVG file and return XML document
+}
+\examples{
+fpath <- system.file("extdata", "fig1.svg", package="svgtools")
+svg <- read_svg(file = fpath, summary = TRUE)
 }

@@ -56,3 +56,15 @@ For further description see \code{\link{stackedBar}}.
 \details{
 See \code{\link{stackedBar}}.
 }
+\examples{
+#read SVG file
+fpath <- system.file("extdata", "fig5.svg", package="svgtools")
+svg <- read_svg(file = fpath)
+
+#adjust bars
+values <- matrix(c(1,2,3,4,2,3,4,1,3,4,1,2,4,1,2,3,1,2,3,4)*10, 
+                 nrow = 5, byrow = TRUE)
+svg <- referenceBar(svg = svg, frame_name = "frame", group_name = "group",
+                    scale_real = c(-100,100), values = values, 
+                    reference = 2, nullvalue = 0)
+}

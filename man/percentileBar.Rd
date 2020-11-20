@@ -40,3 +40,18 @@ For further description see \code{\link{stackedBar}}.
 In contrast to \code{\link{stackedBar}} the value set(s) need(s) to have one more element than bar segments in each group.\cr
 For everything else, see \code{\link{stackedBar}}.
 }
+\examples{
+#read SVG file
+fpath <- system.file("extdata", "fig9.svg", package="svgtools")
+svg <- read_svg(file = fpath)
+
+#adjust bars
+set.seed(12345)
+yy <- -2:2*15
+percentiles <- data.frame(p5=rnorm(5,350,10)+yy, p25=rnorm(5,450,10)+yy, 
+                          p50low=rnorm(5,510,10)+yy-1.5, p75=rnorm(5,560,10)+yy, 
+                          p95=rnorm(5,640,10)+yy)
+percentiles$p50upp <- percentiles$p50low+3
+svg <- percentileBar(svg = svg, frame_name = "frame", group_name = "group",
+                     scale_real = c(250,750), values = percentiles)
+}

@@ -54,3 +54,30 @@ The function currently supports the following \code{symbol_type}s:
 \item linegroup: XML elements of type 'g' that contain elements of type 'line'. Attributes 'x1' and 'x2' or 'y1' and 'y2' of those lines are adjusted so that the mean x- or y-coordinate of all lines in the group matches the scaled value position on the chart.
 }
 }
+\examples{
+#read SVG file
+fpath <- system.file("extdata", "fig11.svg", package="svgtools")
+svg <- read_svg(file = fpath)
+
+#adjust lines and/or symbols
+set.seed(12345)
+values <- matrix(c(rnorm(10,0.95,0.03), rnorm(10,0.75,0.05), 
+                   rnorm(10,0.55,0.07), rnorm(10,0.35,0.05), 
+                   rnorm(10,0.15,0.03)), nrow = 5, byrow = TRUE)
+values[2,8] <- as.numeric(NA)
+svg <- linesSymbols(svg = svg, frame_name = "frame", group_name = "gA", 
+                    scale_real = c(0,1), values = values[1,], 
+                    symbol_type = "rect")
+svg <- linesSymbols(svg = svg, frame_name = "frame", group_name = "gB", 
+                    scale_real = c(0,1), values = values[2,], 
+                    symbol_type = "circle")
+svg <- linesSymbols(svg = svg, frame_name = "frame", group_name = "gC", 
+                    scale_real = c(0,1), values = values[3,], 
+                    has_lines = FALSE, symbol_type = "polygon")
+svg <- linesSymbols(svg = svg, frame_name = "frame", group_name = "gD", 
+                    scale_real = c(0,1), values = values[4,], 
+                    symbol_type = "linegroup")
+svg <- linesSymbols(svg = svg, frame_name = "frame", group_name = "gE", 
+                    scale_real = c(0,1), values = values[5,], 
+                    symbol_type = NULL)
+}

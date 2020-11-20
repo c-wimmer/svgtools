@@ -3,25 +3,10 @@ title: "svgtools: Manipulate SVG template files of charts."
 author: "Konrad Oberwimmer <konrad.oberwimmer@iqs.gv.at>"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{svgtools: Manipulate SVG template files of diagrams.}
+  %\VignetteIndexEntry{svgtools: Manipulate SVG template files of charts.}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-knit: (function(input, ...) {
-    rmarkdown::render(
-      input,
-      clean = FALSE,
-      run_pandoc = FALSE
-    )
-  })
 ---
-
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
-)
-
-```
 
 # Purpose {#purpose}
 The purpose of `svgtools` is to manipulate SVG files that are templates of charts the user wants to produce. In vector graphics one copes with x-/y-coordinates of elements (e.g. lines, rectangles, text). Their scale is often dependent on the program that is used to produce the graphics. In applied statistics one usually has numeric values on a fixed scale (e.g. percentage values between 0 and 100) to show in a chart. Basically, `svgtools` transforms the statistical values into coordinates and widths/heights of the vector graphics.
@@ -30,7 +15,7 @@ SVG file format is nothing else than XML (see [here](https://www.w3schools.com/g
 
 For example, an SVG image might look like this:
 
-![Fig. 1: SVG example](images/fig1.jpg)
+![Fig. 1: SVG example](fig1.jpg)
 
 Its file content contains lines in XML:
 ```
@@ -63,7 +48,7 @@ write_svg(svg = svg,file = "images/fig1_values.svg")
 ```
 The result looks like this:
 
-![Fig. 2: SVG manipulated to reflect real values](images/fig1_values.jpg)
+![Fig. 2: SVG manipulated to reflect real values](fig1_values.jpg)
 
 The magic happens at the function call for `stackedBar`. Here, one argument refers to the named rectangle 'myFrame' to define outer limits for the graphical coordinates and one argument to the named group of elements 'myBars' containing rectangles (bar segments) and texts (value labels) for the chart. Concerning the values one wants to show in the chart, the "real" scale is defined by a vector ranging from 0 to 100 and a dataframe with values is provided. `svgtools` can now calculate the corresponding graphical coordinates and widths and change the elements in 'myBars' accordingly.
 
@@ -138,7 +123,7 @@ svg <- read_svg(file = "images/fig3.svg",summary = TRUE,display = TRUE)
 ```
 Reading the SVG file with arguments `summary=TRUE` and `display=TRUE` conveniently prints information about it on the console and displays the SVG in the current viewport (see [here](#filehandling)). It might look like that:
 
-![Fig. 3: Bar chart example](images/fig3.jpg)
+![Fig. 3: Bar chart example](fig3.jpg)
 
 In this example the XML structure has two named groups. The first consists of the XML elements (3 rectangles and 3 texts) for the leftmost bar and is named 'overall'. The second one is a group named 'subgroups' that itself contains three groups of XML elements for the three bars to the right. See the following excerpt of the file:
 ```
@@ -200,7 +185,7 @@ write_svg(svg = svg,file = "images/fig3_values.svg",
 ```
 The program code above will ultimately display the following chart and also save it to a file:
 
-![Fig. 4: Adjusted bar chart example](images/fig3_values.jpg)
+![Fig. 4: Adjusted bar chart example](fig3_values.jpg)
 
 The first function call to `stackedBar` in the example above has set every argument there is for this function. `has_labels=TRUE` and `decimals=0` are actually default values, which is why things work the same in the second function call. While the meaning of `has_labels=TRUE` is obvious, note how values are rounded to the number of decimal digits desired, so that '105.71' becomes '106' in the chart.
 
@@ -218,7 +203,7 @@ In `svgtools` a reference bar is a stacked bar chart that is aligned around a nu
 
 The following figure shows a possible template. Note that it is not necessary to adjust bar segments and values (in horizontal direction) beforehand.
 
-![Fig. 5: Reference bar example](images/fig5.jpg)
+![Fig. 5: Reference bar example](fig5.jpg)
 
 An example code for usage of `referenceBar` looks like that:
 ```
@@ -230,7 +215,7 @@ svg <- referenceBar(svg = svg,frame_name = "frame",group_name = "group",
 ```
 In regard of the x-axis labels, `scale_real` has to provide an interval with a range of 200 that includes the `nullvalue`. So even though the percentages in the example are of course positive, defining the range of values from -100 to 100 is feasible. The `nullvalue` will most often be at zero, so this is also set as the default value. `reference=2` defines, that the first two values in each bar will be represented to the left of whereever the nullvalue lies, while further values (another two in the example) will be shown to the right. The result looks like this:
 
-![Fig. 6: Adjusted reference bar example](images/fig5_values.jpg)
+![Fig. 6: Adjusted reference bar example](fig5_values.jpg)
 
 
 ### Difference bar
@@ -238,7 +223,7 @@ Another specialized bar chart provides the ability to show difference values in 
 
 The following example makes use of the general behavior of `svgtools` that elements related to NA values are simply hidden from the chart:
 
-![Fig. 7: Difference bar example](images/fig7.jpg)
+![Fig. 7: Difference bar example](fig7.jpg)
 
 Note that in the example bar segments and value labels exist for the possibility of both a negative or a positive value to be shown. Grouping and naming works the same as for the general `stackedBar`. It would be possible to prepare just one bar segment and value label. In that case, one would have to know the values beforehand if different coloring like in the example is desired.
 ```
@@ -252,7 +237,7 @@ The sample code prepares a dataframe with two vectors: one with negative, the ot
 
 The call to `diffBar` holds no surprises. The special argument `nullvalue` is set to zero (the default value), meaning the negative values will lie to the left, while positive values will lie to the right from whereever "statistical" zero has its x-coordinate in the graph.
 
-![Fig. 8: Adjusted difference bar example](images/fig7_values.jpg)
+![Fig. 8: Adjusted difference bar example](fig7_values.jpg)
 
 Note that number formatting depends on the systems locale (country-specific settings).
 
@@ -261,7 +246,7 @@ Bar charts representing percentiles are a rather special case: First, the x-coor
 
 Take for example the common case where one wants to show the .05, 0.25, 0.50 (median), 0.75 and 0.95 percentile of a metric distribution. This could be shown by four bar segments (0.05-0.25, 0.25-0.50, 0.50-0.75, 0.75-0.90). However, if the median should appear as as thicker line and not just as the edge between two bar segments, one could provide another bar segment and values for median plus-and-minus some epsilon. The following example illustrates this setting:
 
-![Fig. 9: Percentile bar example](images/fig9.jpg)
+![Fig. 9: Percentile bar example](fig9.jpg)
 
 Values preparation in the code includes subtracting some epsilon (1.5 in the example) from the median values (="lower bound") and then providing an "upper bound" by adding two times epsilon to those values.
 ```
@@ -280,7 +265,7 @@ Note that the column order in `values` may not reflect the order of percentiles.
 
 `percentileBar` has no special arguments and value labels are not permitted. The result looks like that in the example:
 
-![Fig. 10: Adjusted percentile bar example](images/fig9_values.jpg)
+![Fig. 10: Adjusted percentile bar example](fig9_values.jpg)
 
 # Adjusting line and/or symbol charts {#linesSymbols}
 Function `linesSymbols` provides the ability to adjust a chart with lines and/or symbols to values on the "statistical" scale. Symbol types currently supported are:
@@ -293,7 +278,7 @@ Function `linesSymbols` provides the ability to adjust a chart with lines and/or
 
 A common example would be the progression of some measure (e.g. a percentage) over time, perhaps for several groups:
 
-![Fig. 11: Lines and symbols chart example](images/fig11.jpg)
+![Fig. 11: Lines and symbols chart example](fig11.jpg)
 
 Adjusting a chart with lines and/or symbols by the means of `linesSymbols` follows the same [general principles of operation](#general) that adjusting bar charts (`stackedBar` and its variants) does. One major difference is, that with lines and/or symbols charts every (zigzag) line and/or set of (uniform) symbols needs to be grouped together (XML element 'g') and such a group needs to be named directly (setting XML attribute 'id'). It is not possible to group those any further.
 
@@ -376,14 +361,14 @@ Note that for group B, one element of the values vector is set to NA. `linesSymb
 
 For groups B to E warnings are displayed on the console, saying that not enough elements were provided in the template and that they will be automatically duplicated. Those warnings are not to be worried about, one should just check if the result looks as expected.
 
-![Fig. 12: Adjusted lines and symbols chart](images/fig11_values.jpg)
+![Fig. 12: Adjusted lines and symbols chart](fig11_values.jpg)
 
 In the result, all `values` are shown in the chart at their rightful position. Line for group B is broken at the point where NA was given as value. Even though this is seldom necessary, the handling of the XML structure allows for subsequent calls to `linesSymbols` for the same named groups. Hidden elements, like the two line segments and one circle for group B would reappear.
 
 # Adjusting scatter plots
 Adjusting scatter plots is a special case of a symbols chart that could also be done with two calls to `linesSymbols` of opposite `alignment` and with intelligent ordering of `values`. For convenience, the wrapper function `scatterSymbols` provides this ability within one function and without the need to think alot.
 
-![Fig. 13: Scatter plot example](images/fig13.jpg)
+![Fig. 13: Scatter plot example](fig13.jpg)
 
 The example consists of the four possible types of symbols described [here](#linesSymbols). Note that each one has to be within a named group. The actual number of elements within this group does not matter. `scatterSymbols` will either a) work with the symbols provided if their amount matches the length of `values` or b) it will duplicate the first element of the group until the right amount is reached or c) it will remove elements from the bottom of the group until the right amount remains. This behaviour makes subsequent calls to `scatterSymbols` for the same group possible, but it means that under normal circumstances there should be a group for every symbol of different shape or colour.
 ```
@@ -428,7 +413,7 @@ svg <- scatterSymbols(svg = svg,frame_name = "frame",group_name = "gD",
 
 The result looks like this:
 
-![Fig. 14: Adjusted scatter plot example](images/fig13_values.jpg)
+![Fig. 14: Adjusted scatter plot example](fig13_values.jpg)
 
 # Changing text in text elements
 Use `changeText` to change the displayed text of a text element. In contrast to other functions, the text element may not be within a group, but has to be either named itself (set XML attribute 'id') or contain the text from argument `element_name` to identify it.

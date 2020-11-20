@@ -46,3 +46,28 @@ The function currently supports the following \code{symbol_type}s:
 \item linegroup: XML elements of type 'g' that contain elements of type 'line'. Attributes 'x1', 'x2', 'y1' and 'y2' of those lines are adjusted so that the mean x- and y-coordinate of all lines in the group matches the scaled value positions on the chart.
 }
 }
+\examples{
+#read SVG file
+fpath <- system.file("extdata", "fig13.svg", package="svgtools")
+svg <- read_svg(file = fpath)
+
+#scatter symbols
+set.seed(12345)
+df <- data.frame(g=rep(1:4,10), x=rnorm(40,500,75), y=rnorm(40,500,75))
+df[df$g==1,]$x <- df[df$g==1,]$x-35
+df[df$g==2,]$y <- df[df$g==2,]$y-35
+df[df$g==3,]$x <- df[df$g==3,]$x+35
+df[df$g==4,]$y <- df[df$g==4,]$y+35
+svg <- scatterSymbols(svg = svg, frame_name = "frame", group_name = "gA", 
+                      scale_real_x = c(250,750), scale_real_y = c(250,750), 
+                      values = df[df$g==1,2:3], symbol_type = "rect")
+svg <- scatterSymbols(svg = svg, frame_name = "frame", group_name = "gB", 
+                      scale_real_x = c(250,750), scale_real_y = c(250,750), 
+                      values = df[df$g==2,2:3], symbol_type = "circle")
+svg <- scatterSymbols(svg = svg, frame_name = "frame", group_name = "gC", 
+                      scale_real_x = c(250,750), scale_real_y = c(250,750), 
+                      values = df[df$g==3,2:3], symbol_type = "polygon")
+svg <- scatterSymbols(svg = svg, frame_name = "frame", group_name = "gD", 
+                      scale_real_x = c(250,750), scale_real_y = c(250,750), 
+                      values = df[df$g==4,2:3], symbol_type = "linegroup")
+}

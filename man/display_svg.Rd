@@ -20,3 +20,11 @@ Display SVG on standard graphic display port
 Viewport depends on system and IDE. In RStudio the image is displayed under 'Viewer'.\cr
 If neither width nor height are specified the image will have its size depending on DPI settings. If only one of these is specified, the other one is scaled accordingly.
 }
+\examples{
+#read SVG file
+fpath <- system.file("extdata", "fig1.svg", package="svgtools")
+svg <- read_svg(file = fpath)
+
+#display SVG file in standard viewport
+display_svg(svg = svg, width = 500)
+}

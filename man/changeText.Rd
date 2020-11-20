@@ -32,3 +32,13 @@ XML document with SVG content
 \description{
 Changes the text entry of XML element of type 'text'. The XML element may be found by its name (XML attribute 'id') or based on its current text entry.
 }
+\examples{
+#read SVG file
+fpath <- system.file("extdata", "fig1.svg", package="svgtools")
+svg <- read_svg(file = fpath)
+
+#change a text
+svg <- changeText(svg = svg, element_name = "Category A", text = "low")
+svg <- changeText(svg = svg, element_name = "Category B", text = "medium")
+svg <- changeText(svg = svg, element_name = "Category C", text = "high")
+}

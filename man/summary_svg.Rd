@@ -20,3 +20,11 @@ Prints helpful information to verify the content of the SVG file:
 \item Used fonts, font sizes and font colors (in any XML elements with attributes 'font-family', 'font-size', 'fill' and 'stroke')
 }
 }
+\examples{
+#read SVG file
+fpath <- system.file("extdata", "fig1.svg", package="svgtools")
+svg <- read_svg(file = fpath)
+
+#show a summary of SVG file
+summary_svg(svg = svg)
+}

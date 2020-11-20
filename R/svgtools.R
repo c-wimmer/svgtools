@@ -4,11 +4,14 @@
 ### DATEIMANAGEMENT ----
 
 #' Read SVG file and return XML document
-#' @param file A string, a connection, or a raw vector. See \code{\link{xml2::read_xml}}.
+#' @param file A string, a connection, or a raw vector. See \code{\link[xml2]{read_xml}}.
 #' @param enc Encoding (default 'UTF-8').
 #' @param summary Show summary of SVG file (\code{\link{summary_svg}})? (default FALSE)
 #' @param display Display SVG on standard display port (\code{\link{display_svg}})? (default FALSE)
 #' @return XML document with SVG content
+#' @examples
+#' fpath <- system.file("extdata", "fig1.svg", package="svgtools")
+#' svg <- read_svg(file = fpath, summary = TRUE)
 #' @export
 read_svg <- function(file, enc = "UTF-8", summary = FALSE, display = FALSE) {
   
@@ -35,6 +38,13 @@ read_svg <- function(file, enc = "UTF-8", summary = FALSE, display = FALSE) {
 #' \item Available frames (XML elements 'rect' with attribute 'id')
 #' \item Used fonts, font sizes and font colors (in any XML elements with attributes 'font-family', 'font-size', 'fill' and 'stroke')
 #' }
+#' @examples
+#' #read SVG file
+#' fpath <- system.file("extdata", "fig1.svg", package="svgtools")
+#' svg <- read_svg(file = fpath)
+#' 
+#' #show a summary of SVG file
+#' summary_svg(svg = svg)
 #' @export
 summary_svg <- function(svg) {
   
@@ -78,7 +88,7 @@ summary_svg <- function(svg) {
   print("-- USED FONT SIZES:")
   used_sizes <- character()
   for (size in text_elements) {
-    used_sizes <- c(used_sizes, xml2::xml_attr(font, "font-size"))
+    used_sizes <- c(used_sizes, xml2::xml_attr(size, "font-size"))
   }
   print(unique(used_sizes))
   
@@ -110,6 +120,13 @@ summary_svg <- function(svg) {
 #' @param height Desired height (in px) of image (default NULL).
 #' @details Viewport depends on system and IDE. In RStudio the image is displayed under 'Viewer'.\cr
 #' If neither width nor height are specified the image will have its size depending on DPI settings. If only one of these is specified, the other one is scaled accordingly.
+#' @examples
+#' #read SVG file
+#' fpath <- system.file("extdata", "fig1.svg", package="svgtools")
+#' svg <- read_svg(file = fpath)
+#' 
+#' #display SVG file in standard viewport
+#' display_svg(svg = svg, width = 500)
 #' @export
 display_svg <- function(svg, width = NULL, height = NULL) {
   rsvg <- rsvg::rsvg(charToRaw(toString(svg)),width = width,height = height) #wandelt das XML-Objekt zunaechst in einen String und dann in Bytes um; wird von von rsvg zu bitmap gerendert
@@ -118,10 +135,24 @@ display_svg <- function(svg, width = NULL, height = NULL) {
 
 #' Writes SVG to file
 #' @param svg XML document with SVG content.
-#' @param file Path to file or connection to write to (see \code{\link{xml2::write_xml}}).
+#' @param file Path to file or connection to write to (see \code{\link[xml2]{write_xml}}).
 #' @param remove_hidden Should hidden elements (with XML attribute display="none") be removed? (default TRUE)
 #' @param flatten Should grouping of SVG elements be removed? (default FALSE)
 #' @details Both \code{remove_hidden=TRUE} and \code{flatten=TRUE} do not alter the XML document object itself. Therefore, subsequent calls to \code{\link{stackedBar}} and other functions remain possible.
+#' @examples
+#' #read SVG file
+#' fpath <- system.file("extdata", "fig3.svg", package="svgtools")
+#' svg <- read_svg(file = fpath)
+#' 
+#' #adjust some elements of SVG
+#' svg <- stackedBar(svg = svg, frame_name = "frame", group_name = "overall", 
+#'                   scale_real = c(0,160), values = c(10,42,106), 
+#'                   alignment = "vertical")
+#' 
+#' \dontrun{
+#' #write SVG file to disk and remove all groupings
+#' write_svg(svg = svg, file = "myChart.svg", flatten = TRUE)
+#' }
 #' @export
 write_svg <- function(svg, file, remove_hidden = TRUE, flatten = FALSE) {
   
@@ -377,7 +408,7 @@ stackedBar_edit_rects <- function(rects, frame_info, value_set, order_rects, ali
       if (alignment=="vertical")
       {
         xml2::xml_set_attr(rect, "y", frame_info$max_y - value_set[rr] * frame_info$scaling_y - offset * frame_info$scaling_y)
-        xml2::xml_set_attr(rect, "height", abs(value_set[rr]) * frame_info$scaling_y - offset * frame_info$scaling_y)
+        xml2::xml_set_attr(rect, "height", abs(value_set[rr]) * frame_info$scaling_y)
         pos_next <- as.numeric(xml2::xml_attr(rect, "y"))
       }
     } else { #weitere Rechtecke
@@ -505,6 +536,20 @@ stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, orde
 #' Bar segments and, optionally, value labels may be grouped together in any order in the SVG file. The function will automatically use XML elements from left to right (with \code{alignment='horizontal'}) or bottom to top (with \code{alignment='vertical'}) according to their x/y-coordinates.\cr
 #' Furthermore, the SVG file order of several bars grouped together in an outer group is irrelevant. The function will automatically use bars (that is, groups of bar segments and, optionally, value labels) from top to bottom (with \code{alignment='horizontal'}) or left to right (with \code{alignment='vertical'}) according to the lowest x/y-coordinate of any element.\cr
 #' Bar segments and value labels (if any) are automatically hidden (XML attribute 'diplay' is set to 'none'), when a value of 0 or NA is provided. Subsequent calls to the function with non-zero or non-NA values make such elements reappear in the output.
+#' @examples
+#' #read SVG file
+#' fpath <- system.file("extdata", "fig3.svg", package="svgtools")
+#' svg <- read_svg(file = fpath)
+#' 
+#' #adjust bars
+#' svg <- stackedBar(svg = svg, frame_name = "frame", group_name = "overall",
+#'                   scale_real = c(0,160), values = c(9.97,42.42,105.71), 
+#'                   alignment = "vertical", has_labels = TRUE, 
+#'                   label_position = "end", decimals = 0, display_limits = 10)
+#' df.subgroups <- matrix(1:9*8, nrow=3)
+#' svg <- stackedBar(svg = svg, frame_name = "frame", group_name = "subgroups", 
+#'                   scale_real = c(0,160), values = df.subgroups, 
+#'                   alignment = "vertical", display_limits = 10)
 #' @export
 stackedBar <- function(svg, frame_name, group_name, scale_real, values, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limits = 0, ...) {
   
@@ -612,6 +657,17 @@ stackedBar <- function(svg, frame_name, group_name, scale_real, values, alignmen
 #' @param display_limits Interval for (small) values, that lead to suppression of the corresponding value labels. If only one value x is given, it is turned into the interval c(-x,x). (default 0 = no suppression) 
 #' @return XML document with SVG content
 #' @details See \code{\link{stackedBar}}.
+#' @examples
+#' #read SVG file
+#' fpath <- system.file("extdata", "fig5.svg", package="svgtools")
+#' svg <- read_svg(file = fpath)
+#' 
+#' #adjust bars
+#' values <- matrix(c(1,2,3,4,2,3,4,1,3,4,1,2,4,1,2,3,1,2,3,4)*10, 
+#'                  nrow = 5, byrow = TRUE)
+#' svg <- referenceBar(svg = svg, frame_name = "frame", group_name = "group",
+#'                     scale_real = c(-100,100), values = values, 
+#'                     reference = 2, nullvalue = 0)
 #' @export
 referenceBar <- function(svg, frame_name, group_name, scale_real, values, reference, nullvalue=0, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limits = 0) {
   if (nullvalue < min(scale_real) || nullvalue > max(scale_real)) stop("Error: nullvalue has to be in [min(scale_real),max(scale_real)].")
@@ -655,6 +711,17 @@ referenceBar <- function(svg, frame_name, group_name, scale_real, values, refere
 #' @param display_limits Interval for (small) values, that lead to suppression of the corresponding value labels. If only one value x is given, it is turned into the interval c(-x,x). (default 0 = no suppression) 
 #' @return XML document with SVG content
 #' @details See \code{\link{stackedBar}}.
+#' @examples
+#' #read SVG file
+#' fpath <- system.file("extdata", "fig7.svg", package="svgtools")
+#' svg <- read_svg(file = fpath)
+#' 
+#' #adjust bars
+#' df <- data.frame(diff_negative = c(NA,NA,-0.7,NA,-0.33), 
+#'                  diff_positive = c(0.4,0.55,NA,0.02,NA))
+#' svg <- diffBar(svg = svg, frame_name = "frame", group_name = "group", 
+#'                scale_real = c(-1,1), values = df, nullvalue = 0, 
+#'                label_position = "end", decimals = 1, display_limits = 0.1)
 #' @export
 diffBar <- function(svg, frame_name, group_name, scale_real, values, nullvalue=0, alignment = "horizontal", has_labels = TRUE, label_position = "center", decimals = 0, display_limits = c(0,0)) {
   if (nullvalue < min(scale_real) || nullvalue > max(scale_real)) stop("Error: nullvalue has to be in [min(scale_real),max(scale_real)].")
@@ -698,6 +765,20 @@ diffBar <- function(svg, frame_name, group_name, scale_real, values, nullvalue=0
 #' @return XML document with SVG content
 #' @details In contrast to \code{\link{stackedBar}} the value set(s) need(s) to have one more element than bar segments in each group.\cr
 #' For everything else, see \code{\link{stackedBar}}.
+#' @examples
+#' #read SVG file
+#' fpath <- system.file("extdata", "fig9.svg", package="svgtools")
+#' svg <- read_svg(file = fpath)
+#' 
+#' #adjust bars
+#' set.seed(12345)
+#' yy <- -2:2*15
+#' percentiles <- data.frame(p5=rnorm(5,350,10)+yy, p25=rnorm(5,450,10)+yy, 
+#'                           p50low=rnorm(5,510,10)+yy-1.5, p75=rnorm(5,560,10)+yy, 
+#'                           p95=rnorm(5,640,10)+yy)
+#' percentiles$p50upp <- percentiles$p50low+3
+#' svg <- percentileBar(svg = svg, frame_name = "frame", group_name = "group",
+#'                      scale_real = c(250,750), values = percentiles)
 #' @export
 percentileBar <- function(svg, frame_name, group_name, scale_real, values, alignment = "horizontal") {
   if (is.numeric(values))
@@ -1441,6 +1522,32 @@ linesSymbols_edit_rects <- function (svg, group, frame_info, value_set, alignmen
 #' \item polygon: XML elements of type 'polygon'. Attribute 'points' is adjusted so that the centroid of the shape matches the scaled value position on the chart.
 #' \item linegroup: XML elements of type 'g' that contain elements of type 'line'. Attributes 'x1' and 'x2' or 'y1' and 'y2' of those lines are adjusted so that the mean x- or y-coordinate of all lines in the group matches the scaled value position on the chart.
 #' }
+#' @examples
+#' #read SVG file
+#' fpath <- system.file("extdata", "fig11.svg", package="svgtools")
+#' svg <- read_svg(file = fpath)
+#' 
+#' #adjust lines and/or symbols
+#' set.seed(12345)
+#' values <- matrix(c(rnorm(10,0.95,0.03), rnorm(10,0.75,0.05), 
+#'                    rnorm(10,0.55,0.07), rnorm(10,0.35,0.05), 
+#'                    rnorm(10,0.15,0.03)), nrow = 5, byrow = TRUE)
+#' values[2,8] <- as.numeric(NA)
+#' svg <- linesSymbols(svg = svg, frame_name = "frame", group_name = "gA", 
+#'                     scale_real = c(0,1), values = values[1,], 
+#'                     symbol_type = "rect")
+#' svg <- linesSymbols(svg = svg, frame_name = "frame", group_name = "gB", 
+#'                     scale_real = c(0,1), values = values[2,], 
+#'                     symbol_type = "circle")
+#' svg <- linesSymbols(svg = svg, frame_name = "frame", group_name = "gC", 
+#'                     scale_real = c(0,1), values = values[3,], 
+#'                     has_lines = FALSE, symbol_type = "polygon")
+#' svg <- linesSymbols(svg = svg, frame_name = "frame", group_name = "gD", 
+#'                     scale_real = c(0,1), values = values[4,], 
+#'                     symbol_type = "linegroup")
+#' svg <- linesSymbols(svg = svg, frame_name = "frame", group_name = "gE", 
+#'                     scale_real = c(0,1), values = values[5,], 
+#'                     symbol_type = NULL)
 #' @export
 linesSymbols <- function (svg, frame_name, group_name, scale_real, values, alignment = "vertical", has_lines = TRUE, symbol_type = NULL, ...) {
   
@@ -1512,6 +1619,30 @@ linesSymbols <- function (svg, frame_name, group_name, scale_real, values, align
 #' \item polygon: XML elements of type 'polygon'. Attribute 'points' is adjusted so that the centroid of the shape matches the scaled value positions on the chart.
 #' \item linegroup: XML elements of type 'g' that contain elements of type 'line'. Attributes 'x1', 'x2', 'y1' and 'y2' of those lines are adjusted so that the mean x- and y-coordinate of all lines in the group matches the scaled value positions on the chart.
 #' }
+#' @examples
+#' #read SVG file
+#' fpath <- system.file("extdata", "fig13.svg", package="svgtools")
+#' svg <- read_svg(file = fpath)
+#' 
+#' #scatter symbols
+#' set.seed(12345)
+#' df <- data.frame(g=rep(1:4,10), x=rnorm(40,500,75), y=rnorm(40,500,75))
+#' df[df$g==1,]$x <- df[df$g==1,]$x-35
+#' df[df$g==2,]$y <- df[df$g==2,]$y-35
+#' df[df$g==3,]$x <- df[df$g==3,]$x+35
+#' df[df$g==4,]$y <- df[df$g==4,]$y+35
+#' svg <- scatterSymbols(svg = svg, frame_name = "frame", group_name = "gA", 
+#'                       scale_real_x = c(250,750), scale_real_y = c(250,750), 
+#'                       values = df[df$g==1,2:3], symbol_type = "rect")
+#' svg <- scatterSymbols(svg = svg, frame_name = "frame", group_name = "gB", 
+#'                       scale_real_x = c(250,750), scale_real_y = c(250,750), 
+#'                       values = df[df$g==2,2:3], symbol_type = "circle")
+#' svg <- scatterSymbols(svg = svg, frame_name = "frame", group_name = "gC", 
+#'                       scale_real_x = c(250,750), scale_real_y = c(250,750), 
+#'                       values = df[df$g==3,2:3], symbol_type = "polygon")
+#' svg <- scatterSymbols(svg = svg, frame_name = "frame", group_name = "gD", 
+#'                       scale_real_x = c(250,750), scale_real_y = c(250,750), 
+#'                       values = df[df$g==4,2:3], symbol_type = "linegroup")
 #' @export
 scatterSymbols <- function(svg, frame_name, group_name, scale_real_x, scale_real_y, values, symbol_type) {
   # input check
@@ -1588,6 +1719,15 @@ svg_setElementText <- function(svg, element_name, text_new, alignment = NULL, in
 #' @param in_group Name (attribute 'id') of group (XML element 'g') that contains the text element (default NULL = no group, search the entire SVG).
 #' @param hide_blank Should text elements with empty strings be hidden (set attribute 'display' to 'none')? (default FALSE)
 #' @return XML document with SVG content
+#' @examples
+#' #read SVG file
+#' fpath <- system.file("extdata", "fig1.svg", package="svgtools")
+#' svg <- read_svg(file = fpath)
+#' 
+#' #change a text
+#' svg <- changeText(svg = svg, element_name = "Category A", text = "low")
+#' svg <- changeText(svg = svg, element_name = "Category B", text = "medium")
+#' svg <- changeText(svg = svg, element_name = "Category C", text = "high")
 #' @export
 changeText <- function(svg, element_name, text, alignment = NULL, in_group = NULL, hide_blank = FALSE) {
   return(svg_setElementText(svg = svg,element_name = element_name,text_new = text,alignment = alignment,inGroup = in_group, hide_blank = hide_blank))
