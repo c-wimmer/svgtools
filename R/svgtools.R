@@ -25,6 +25,9 @@ read_svg <- function(file, enc = "UTF-8", summary = FALSE, display = FALSE) {
   # print svg
   if (display) {display_svg(svg_in)}
   
+  # set svg_obj class
+  class(svg_in) <- c(class(svg_in),"svg_obj")
+  
   # return
   return(svg_in)
   
@@ -52,7 +55,7 @@ summary_svg <- function(svg) {
   rects <- xml2::xml_find_all(svg, "/svg/rect")
   tlr <- character()
   for (rect in rects) if (xml2::xml_has_attr(rect, "id")) tlr <- c(tlr,xml2::xml_attr(rect, "id"))
-  print(paste0("-- Top Level Named Rects (Available Frames): ",ifelse(length(tlr)>0,paste(tlr,collapse="; "),"NONE")))
+  print(paste0("-- Top Level Named Rects (Frames): ",ifelse(length(tlr)>0,paste(tlr,collapse="; "),"NONE")))
 
   # Named Groups
   groups <- xml2::xml_find_all(svg, "/svg/g")
@@ -102,7 +105,7 @@ summary_svg <- function(svg) {
       if (!found_type) tlg <- c(tlg,paste0(group_name, " (UNKNOWN)"))
     }
   }
-  if (length(tlg)==0) print("-- Top Level Named Groups (Available Elements): NONE")
+  if (length(tlg)==0) print("-- Top Level Named Groups: NONE")
   if (length(tlg)>0)
   {
     print("-- Top Level Named Groups (Available Elements):")
@@ -2324,4 +2327,33 @@ svg_setElementText <- function(svg, element_name, text_new, alignment = NULL, in
 #' @export
 changeText <- function(svg, element_name, text, alignment = NULL, in_group = NULL, hide_blank = FALSE) {
   return(svg_setElementText(svg = svg,element_name = element_name,text_new = text,alignment = alignment,inGroup = in_group, hide_blank = hide_blank))
+}
+
+### FORMATIERUNGSFUNKTIONEN ----
+
+#' Do some formatting on SVG
+#' @description With + one can apply formatting functions on SVG charts.
+#' @param svg XML document with SVG content
+#' @param format_function A formatting function (see details)
+#' @return XML document with SVG content
+#' @details BLABLABLA
+#' @examples
+#' @export
+`+.svg_obj` <- function(svg,format_function) {
+  if (!"svg_format_function" %in% names(format_function)) stop("Error: Right-hand argument of + operator is no function of type 'svg_format_function'!")
+  args <- format_function
+  args$svg_format_function <- NULL
+  args$svg <- svg
+  do.call(what = format_function$svg_format_function,args = args)
+}
+
+centerTextHorizontal_ <- function(svg,group_name) {
+  print(paste0("Zentriere fuer ",group_name))
+  #TODO: eigentlicher Programmcode
+  return(svg)
+}
+
+#' @export
+centerTextHorizontal <- function(group_name) {
+  return(list(svg_format_function="centerTextHorizontal_",group_name=group_name))
 }
