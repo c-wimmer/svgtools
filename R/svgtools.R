@@ -135,7 +135,7 @@ summary_svg <- function(svg) {
     used_colors <- c(used_colors, xml2::xml_attr(element, "fill"))
     used_colors <- c(used_colors, xml2::xml_attr(element, "stroke"))
   }
-  used_colors <- unique(setdiff(na.omit(used_colors),"none"))
+  used_colors <- unique(setdiff(stats::na.omit(used_colors),"none"))
   print(paste0("-- Used Colors: ",ifelse(length(used_colors)>0,paste(used_colors,collapse="; "),"NONE")))
   
 }
@@ -283,8 +283,8 @@ getMinMaxCurve <- function(controlpoints)
 #berechnet die minimale und maximale Ausbreitung von Arcs bis hin zur 10. Kommastelle
 getMinMaxArc <- function(arcparams)
 {
-  stop("!!!") #hier weiterprogrammieren
-  return(results)
+  stop("Error: currently, svgtools does not support A- or a-command in path definition!") #TODO
+  return(NULL)
 }
 
 # Liest Infos des genannten Rahmens aus und berechnet Skalierung
@@ -847,7 +847,7 @@ diffBar <- function(svg, frame_name, group_name, scale_real, values, nullvalue=0
     offset <- rep(nullvalue - min(scale_real),nrow(values))
     for (rr in 1:nrow(values))
     {
-      rowvalues <- as.vector(values[rr,])
+      rowvalues <- as.numeric(values[rr,,drop=TRUE])
       if (any(na.as.false(rowvalues<nullvalue))) offset[rr] <- offset[rr] - abs(sum(rowvalues[na.as.false(rowvalues<nullvalue)]))
     }
   }
@@ -1111,7 +1111,7 @@ linesSymbols_info_paths <- function (paths_inGroup) {
       if (nzchar(pc)==0) next
       if (!substr(pc,1,1) %in% getPathCommands()) stop(paste0("Error: Invalid path command '",pc,"' in path ",paths_inGroup[pp],"!"))
       suppressWarnings(coords <- as.numeric(strsplit(x = substr(pc,2,nchar(pc)),split = " ")[[1]]))
-      coords <- na.omit(coords)
+      coords <- stats::na.omit(coords)
       if (substr(pc,1,1) == "M") {
         if (length(coords) < 2 || length(coords)%%2 != 0) stop(paste0("Error: Invalid path command '",pc,"' in path ",paths_inGroup[pp],"!"))
         newpc <- ""
@@ -1212,7 +1212,7 @@ linesSymbols_info_paths <- function (paths_inGroup) {
         ecp_x <- ecp_y <- qcp_x <- qcp_y <- NA
         handled.command <- TRUE
       }
-      if ((substr(pc,1,1) == "C" || substr(pc,1,1) == "c") && !require(bezier)) stop(paste0("Error: package 'bezier' required for handling curves in path ",paths_inGroup[pp],"!"))
+      if ((substr(pc,1,1) == "C" || substr(pc,1,1) == "c") && !requireNamespace("bezier")) stop(paste0("Error: package 'bezier' required for handling curves in path ",paths_inGroup[pp],"!"))
       if (substr(pc,1,1) == "C") {
         if (length(coords) < 6 || length(coords)%%6 != 0) stop(paste0("Error: Invalid path command '",pc,"' in path ",paths_inGroup[pp],"!"))
         newpc <- ""
@@ -1370,10 +1370,12 @@ linesSymbols_info_paths <- function (paths_inGroup) {
         handled.command <- TRUE
       }
       if (substr(pc,1,1) == "A") {
-        
+        #TODO WIP
+        getMinMaxArc(NULL)
       }
       if (substr(pc,1,1) == "a") {
-        
+        #TODO WIP
+        getMinMaxArc(NULL)
       }
       if (substr(pc,1,1) == "Z" || substr(pc,1,1) == "z")
       {
@@ -2331,29 +2333,30 @@ changeText <- function(svg, element_name, text, alignment = NULL, in_group = NUL
 
 ### FORMATIERUNGSFUNKTIONEN ----
 
-#' Do some formatting on SVG
-#' @description With + one can apply formatting functions on SVG charts.
-#' @param svg XML document with SVG content
-#' @param format_function A formatting function (see details)
-#' @return XML document with SVG content
-#' @details BLABLABLA
-#' @examples
-#' @export
-`+.svg_obj` <- function(svg,format_function) {
-  if (!"svg_format_function" %in% names(format_function)) stop("Error: Right-hand argument of + operator is no function of type 'svg_format_function'!")
-  args <- format_function
-  args$svg_format_function <- NULL
-  args$svg <- svg
-  do.call(what = format_function$svg_format_function,args = args)
-}
-
-centerTextHorizontal_ <- function(svg,group_name) {
-  print(paste0("Zentriere fuer ",group_name))
-  #TODO: eigentlicher Programmcode
-  return(svg)
-}
-
-#' @export
-centerTextHorizontal <- function(group_name) {
-  return(list(svg_format_function="centerTextHorizontal_",group_name=group_name))
-}
+# TODO
+#' #' Do some formatting on SVG
+#' #' @description With + one can apply formatting functions on SVG charts.
+#' #' @param svg XML document with SVG content
+#' #' @param format_function A formatting function (see details)
+#' #' @return XML document with SVG content
+#' #' @details BLABLABLA
+#' #' @examples
+#' #' @export
+#' `+.svg_obj` <- function(svg,format_function) {
+#'   if (!"svg_format_function" %in% names(format_function)) stop("Error: Right-hand argument of + operator is no function of type 'svg_format_function'!")
+#'   args <- format_function
+#'   args$svg_format_function <- NULL
+#'   args$svg <- svg
+#'   do.call(what = format_function$svg_format_function,args = args)
+#' }
+#' 
+#' centerTextHorizontal_ <- function(svg,group_name) {
+#'   print(paste0("Zentriere fuer ",group_name))
+#'   #TODO: eigentlicher Programmcode
+#'   return(svg)
+#' }
+#' 
+#' #' @export
+#' centerTextHorizontal <- function(group_name) {
+#'   return(list(svg_format_function="centerTextHorizontal_",group_name=group_name))
+#' }
