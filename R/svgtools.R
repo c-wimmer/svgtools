@@ -2268,41 +2268,30 @@ svg_setElementText <- function(svg, element_name, text_new, alignment = NULL, in
   
   for (element_nr in 1:length(element_name)) {
     
-    check1 <- length(which(xml2::xml_text(elements) == element_name[element_nr])) == 0
-    check2 <- length(which(xml2::xml_attr(elements, "id") == element_name[element_nr])) == 0
+    checkElementWithId <- (length(which(xml2::xml_attr(elements, "id") == element_name[element_nr])) > 0)
+    checkElementWithText <- (length(which(xml2::xml_text(elements) == element_name[element_nr])) > 0)
     
-    
-    if (check1 & check2) {stop(paste0("Error: No text element with id or text '", element_name[element_nr], "' was found."))}
-    
-    if (length(which(xml2::xml_text(elements) == element_name[element_nr])) == 0) {
-      # edit text
-      xml2::xml_set_text(elements[which(xml2::xml_attr(elements, "id") == 
-                                                element_name[element_nr])], text_new[element_nr])
-      # edit alignment
-      if (!is.null(alignment)) {
-        xml2::xml_set_attr(elements[which(xml2::xml_attr(elements, "id") == 
-                                                  element_name[element_nr])], "text-anchor", alignment)
-      }
-      # hide if blank
-      if (nchar(text_new)==0 && hide_blank) xml2::xml_set_attr(elements[which(xml2::xml_attr(elements, "id") == element_name[element_nr])], "display", "none")
-      if (nchar(text_new)>0 || !hide_blank) xml2::xml_set_attr(elements[which(xml2::xml_attr(elements, "id") == element_name[element_nr])], "display", NULL)
-      
-    } else {
-      # edit text
-      xml2::xml_set_text(elements[which(xml2::xml_text(elements) == 
-                                                element_name[element_nr])], text_new[element_nr])
-      
-      # edit alignment
-      if (!is.null(alignment)) {
-        xml2::xml_set_attr(elements[which(xml2::xml_text(elements) == 
-                                                  element_name[element_nr])], "text-anchor", alignment)
-      }
-      
-      # hide if blank
-      if (nchar(text_new)==0 && hide_blank) xml2::xml_set_attr(elements[which(xml2::xml_text(elements) == element_name[element_nr])], "display", "none")
-      if (nchar(text_new)>0 || !hide_blank) xml2::xml_set_attr(elements[which(xml2::xml_text(elements) == element_name[element_nr])], "display", NULL)
+    if (!checkElementWithId && !checkElementWithText) {
+      stop(paste0("Error: No text element with id or text '", element_name[element_nr], "' was found."))
     }
     
+    if (checkElementWithId) {
+      text_element <- elements[which(xml2::xml_attr(elements, "id") == element_name[element_nr])]
+    } else {
+      text_element <- elements[which(xml2::xml_text(elements) == element_name[element_nr])]
+    }
+    
+    # edit text
+    xml2::xml_set_text(text_element, text_new[element_nr])
+    
+    # edit alignment
+    if (!is.null(alignment)) {
+      xml2::xml_set_attr(text_element, "text-anchor", alignment)
+    }
+    
+    # hide if blank
+    if (nchar(text_new) == 0 && hide_blank) xml2::xml_set_attr(text_element, "display", "none")
+    if (nchar(text_new) > 0 || !hide_blank) xml2::xml_set_attr(text_element, "display", NULL)
   }
   
   return(svg)
