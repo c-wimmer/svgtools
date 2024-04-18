@@ -1943,8 +1943,8 @@ linesSymbols_edit_circles <- function (svg, group, frame_info, value_set, alignm
   # order of circles
   if (!scatter)
   {
-    symbols_order_x <- order(order(as.numeric(xml2::xml_attr(symbols_inGroup, "cx"))))
-    symbols_order_y <- order(order(as.numeric(xml2::xml_attr(symbols_inGroup, "cy"))))
+    symbols_order_x <- order(as.numeric(xml2::xml_attr(symbols_inGroup, "cx")))
+    symbols_order_y <- order(as.numeric(xml2::xml_attr(symbols_inGroup, "cy")))
   }
   if (scatter)
   {
