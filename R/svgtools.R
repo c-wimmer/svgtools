@@ -1034,8 +1034,8 @@ linesSymbols_order_lines <- function (lines_inGroup, alignment) {
     lines_y2_values <- c(lines_y2_values, as.numeric(xml2::xml_attr(lines_inGroup[n_lines], "y2")))
   }
   
-  order_lines_x <- order(order(lines_x1_values))
-  order_lines_y <- order(order(lines_y1_values))
+  order_lines_x <- order(lines_x1_values)
+  order_lines_y <- order(lines_y1_values)
   
   if (alignment == "vertical") {order_lines <- order_lines_x}
   if (alignment == "horizontal") {order_lines <- order_lines_y}
@@ -2042,8 +2042,8 @@ linesSymbols_edit_rects <- function (svg, group, frame_info, value_set, alignmen
   # order of rects
   if (!scatter)
   {
-    symbols_order_x <- order(order(as.numeric(xml2::xml_attr(symbols_inGroup, "x"))))
-    symbols_order_y <- order(order(as.numeric(xml2::xml_attr(symbols_inGroup, "y"))))
+    symbols_order_x <- order(as.numeric(xml2::xml_attr(symbols_inGroup, "x")))
+    symbols_order_y <- order(as.numeric(xml2::xml_attr(symbols_inGroup, "y")))
   }
   if (scatter)
   {
