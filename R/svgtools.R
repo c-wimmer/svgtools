@@ -580,7 +580,12 @@ stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, orde
     text_toChange <- barLabels[order_labels[rr]]
     
     # change value
-    xml2::xml_text(text_toChange) <- format(round(value_set[rr],decimals),nsmall=decimals,decimal.mark=",",big.mark="",small.mark="")
+    if (!getOption("svgtools.roundAwayFromZero", default = FALSE)) {
+      rounded_value <- base::round(value_set[rr],decimals)
+    } else {
+      rounded_value <- roundAwayFromZero(value_set[rr],decimals)
+    }
+    xml2::xml_text(text_toChange) <- format(rounded_value,nsmall=decimals,decimal.mark=",",big.mark="",small.mark="")
     
     # comply with displayLimits and completely ignore NA
     xml2::xml_set_attr(text_toChange, "display", NULL)
