@@ -64,6 +64,7 @@ test_that("linesSymbols sets order of elements correctly", {
         circle = { expect_strict_monotony(svg, paste0("/svg/g[@id=\"GR", gg, "\"]/circle"), "cx", "cy", alignment == "horizontal") },
         rect = { expect_strict_monotony(svg, paste0("/svg/g[@id=\"GR", gg, "\"]/rect"), "x", "y", alignment == "horizontal") },
         polygon = { expect_strict_monotony(svg, paste0("/svg/g[@id=\"GR", gg, "\"]/polygon"), "points", "points", alignment == "horizontal") },
+        linegroup = { expect_strict_monotony(svg, paste0("/svg/g[@id=\"GR", gg, "\"]/g/line[1]"), "x1", "y1", alignment == "horizontal") },
         { warning("not implemented!") }
       )
       
