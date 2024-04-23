@@ -44,6 +44,10 @@ test_that("linesSymbols sets order of elements correctly", {
     
     filenameSplit <- strsplit(testFile, "(_|\\.)")[[1]]
     symbolType <- filenameSplit[length(filenameSplit) - 2]
+    nullableSymbolType <- symbolType
+    if (symbolType == "line") {
+      nullableSymbolType <- NULL
+    }
     alignment <- filenameSplit[length(filenameSplit) - 1]
     
     testValues <- (1:10) * 10
@@ -56,8 +60,8 @@ test_that("linesSymbols sets order of elements correctly", {
         scale_real = 0:100, 
         values = testValues, 
         alignment = alignment, 
-        has_lines = gg >= 5, 
-        symbol_type = symbolType
+        has_lines = gg >= 5 || symbolType == "line", 
+        symbol_type = nullableSymbolType
       )
 
       switch (symbolType,
@@ -65,6 +69,7 @@ test_that("linesSymbols sets order of elements correctly", {
         rect = { expect_strict_monotony(svg, paste0("/svg/g[@id=\"GR", gg, "\"]/rect"), "x", "y", alignment == "horizontal") },
         polygon = { expect_strict_monotony(svg, paste0("/svg/g[@id=\"GR", gg, "\"]/polygon"), "points", "points", alignment == "horizontal") },
         linegroup = { expect_strict_monotony(svg, paste0("/svg/g[@id=\"GR", gg, "\"]/g/line[1]"), "x1", "y1", alignment == "horizontal") },
+        line = { },
         { warning("not implemented!") }
       )
       
