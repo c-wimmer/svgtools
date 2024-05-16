@@ -5,7 +5,7 @@ Version: 1.1.1
 Date: 2022-05-30
 Authors@R:
   c(person("Christian","Wimmer",email="christian.wimmer@iqs.gv.at",role=c("cre", "aut")),
-    person("Konrad","Oberwimmer",role=c("aut", "cre")),
+    person("Konrad","Oberwimmer",role=c("aut")),
     person("Michael","Bruneforth",role="ctb"))
 Description: The purpose of this package is to manipulate SVG files that are templates of charts the user wants to produce. 
     In vector graphics one copes with x-/y-coordinates of elements (e.g. lines, rectangles, text). Their scale is often dependent on the program that is used to produce the graphics. 
