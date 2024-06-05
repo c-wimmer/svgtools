@@ -647,7 +647,7 @@ stackedBar_edit_text <- function(barLabels, order_labels, value_set, rects, orde
 #' @param alignment Character value. Accepts 'horizontal' (default) or 'vertical'. See details.
 #' @param has_labels Are there value labels (of XML type 'text') to adjust? (default TRUE)
 #' @param label_position Character value. Accepts 'start', 'center' (default) and 'end'. This refers to the underlying bar segments.
-#' @param decimals Integer value defining the number of decimal digits of value labels (default 0).
+#' @param decimals Integer value defining the number of decimal digits of value labels (default 0). It is possible to set the rounding of the labels to rounding away from zero by \code{options("svgtools.roundAwayFromZero" = TRUE)}.
 #' @param display_limits Interval for (small) values, that lead to suppression of the corresponding value labels. If only one value x is given, it is turned into the interval c(-x,x). (default 0 = no suppression) 
 #' @param ... Further arguments used internally by \code{\link{referenceBar}}, \code{\link{diffBar}} and \code{\link{percentileBar}}.
 #' @return XML document with SVG content
@@ -772,7 +772,7 @@ stackedBar <- function(svg, frame_name, group_name, scale_real, values, alignmen
 #' @param alignment Character value. Accepts 'horizontal' (default) or 'vertical'. See details.
 #' @param has_labels Are there value labels (of XML type 'text') to adjust? (default TRUE)
 #' @param label_position Character value. Accepts 'start', 'center' (default) and 'end'. This refers to the underlying bar segments.
-#' @param decimals Integer value defining the number of decimal digits of value labels (default 0).
+#' @param decimals Integer value defining the number of decimal digits of value labels (default 0). It is possible to set the rounding of the labels to rounding away from zero by \code{options("svgtools.roundAwayFromZero" = TRUE)}.
 #' @param display_limits Interval for (small) values, that lead to suppression of the corresponding value labels. If only one value x is given, it is turned into the interval c(-x,x). (default 0 = no suppression) 
 #' @return XML document with SVG content
 #' @details See \code{\link{stackedBar}}.
@@ -826,7 +826,7 @@ referenceBar <- function(svg, frame_name, group_name, scale_real, values, refere
 #' @param alignment Character value. Accepts 'horizontal' (default) or 'vertical'. See details.
 #' @param has_labels Are there value labels (of XML type 'text') to adjust? (default TRUE)
 #' @param label_position Character value. Accepts 'start', 'center' (default) and 'end'. This refers to the underlying bar segments.
-#' @param decimals Integer value defining the number of decimal digits of value labels (default 0).
+#' @param decimals Integer value defining the number of decimal digits of value labels (default 0). It is possible to set the rounding of the labels to rounding away from zero by \code{options("svgtools.roundAwayFromZero" = TRUE)}.
 #' @param display_limits Interval for (small) values, that lead to suppression of the corresponding value labels. If only one value x is given, it is turned into the interval c(-x,x). (default 0 = no suppression) 
 #' @return XML document with SVG content
 #' @details See \code{\link{stackedBar}}.
