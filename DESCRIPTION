@@ -1,8 +1,8 @@
 Package: svgtools
 Type: Package
 Title: Manipulate SVG (Template) Files of Charts
-Version: 1.1.1
-Date: 2022-05-30
+Version: 1.1.2
+Date: 2024-06-05
 Authors@R:
   c(person("Christian","Wimmer",email="christian.wimmer@iqs.gv.at",role=c("cre", "aut")),
     person("Konrad","Oberwimmer",role=c("aut")),
