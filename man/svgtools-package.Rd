@@ -15,11 +15,11 @@ Package options:
 }
 }
 \author{
-\strong{Maintainer}: Konrad Oberwimmer \email{konrad.oberwimmer@iqs.gv.at}
+\strong{Maintainer}: Christian Wimmer \email{christian.wimmer@iqs.gv.at}
 
 Authors:
 \itemize{
-  \item Christian Wimmer
+  \item Konrad Oberwimmer
 }
 
 Other contributors:
